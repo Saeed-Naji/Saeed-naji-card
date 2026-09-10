@@ -1704,6 +1704,7 @@ window.FLOWER_LIGHT_SUPABASE = {
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   .fl-cloud-admin{position:fixed;inset:0;z-index:100000;background:#f5f7fb;display:none;direction:rtl;color:#172033;font-family:inherit;overflow:auto}
   .fl-cloud-admin.open{display:block}
@@ -1716,7 +1717,8 @@ window.FLOWER_LIGHT_SUPABASE = {
   .fl-cloud-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}.fl-cloud-product{border:1px solid #e4e9f0;border-radius:14px;overflow:hidden;background:#fff}.fl-cloud-product img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#f2f4f8}.fl-cloud-product-body{padding:11px}.fl-cloud-product-body strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fl-cloud-product-body small{color:#7b8596;display:block;margin:4px 0 9px;min-height:18px}.fl-cloud-product-actions{display:flex;gap:6px}.fl-cloud-product-actions button{flex:1}
   .fl-cloud-overlay{position:fixed;inset:0;z-index:100010;background:rgba(10,18,32,.48);display:none;align-items:flex-start;justify-content:center;padding:28px 12px;overflow:auto}.fl-cloud-overlay.open{display:flex}.fl-cloud-dialog{width:min(650px,100%);background:#fff;border-radius:18px;padding:18px;margin:auto}.fl-cloud-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}.fl-cloud-dialog-head h3{margin:0}.fl-cloud-close{width:40px;height:40px;border:0;border-radius:10px;background:#f0f2f6;font-size:24px;cursor:pointer}.fl-cloud-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fl-cloud-field{display:grid;gap:6px}.fl-cloud-field.full{grid-column:1/-1}.fl-cloud-field label{font-size:13px;font-weight:800}.fl-cloud-field input,.fl-cloud-field textarea,.fl-cloud-field select{width:100%;min-height:44px;border:1px solid #d8dee8;border-radius:10px;padding:9px 11px;font:inherit;box-sizing:border-box}.fl-cloud-field textarea{min-height:90px;resize:vertical}.fl-cloud-check{display:flex;align-items:center;gap:8px;min-height:44px}.fl-cloud-check input{width:20px;height:20px}.fl-cloud-preview{max-width:180px;max-height:180px;border-radius:12px;border:1px solid #e2e7ef;object-fit:cover}.fl-cloud-dialog-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:16px;flex-wrap:wrap}.fl-cloud-toast{position:fixed;z-index:100020;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#172033;color:#fff;border-radius:12px;padding:11px 16px;opacity:0;pointer-events:none;transition:.2s;max-width:min(90vw,480px);text-align:center}.fl-cloud-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .fl-cloud-login{max-width:460px;margin:70px auto;background:#fff;border:1px solid #e2e7ef;border-radius:18px;padding:22px}.fl-cloud-login h2{margin:0 0 7px}.fl-cloud-login p{color:#778196;line-height:1.7}.fl-cloud-login form{display:grid;gap:11px}.fl-cloud-progress{height:10px;background:#edf0f5;border-radius:999px;overflow:hidden;margin-top:10px}.fl-cloud-progress>span{display:block;height:100%;background:#ff9f0a;width:0;transition:.2s}.fl-cloud-empty{text-align:center;color:#7d8799;padding:30px 10px}.fl-cloud-setup code{direction:ltr;display:block;background:#f4f6fa;border-radius:10px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-all}
-  @media(max-width:760px){.fl-cloud-top{align-items:flex-start}.fl-cloud-grid{grid-template-columns:1fr}.fl-cloud-nav{position:static;display:flex;overflow:auto;gap:6px}.fl-cloud-nav button{width:auto;white-space:nowrap;padding:0 14px}.fl-cloud-stats{grid-template-columns:1fr 1fr}.fl-cloud-form{grid-template-columns:1fr}.fl-cloud-field.full{grid-column:auto}.fl-cloud-row{align-items:flex-start;flex-direction:column}.fl-cloud-row-actions{width:100%}.fl-cloud-row-actions button{flex:1}.fl-cloud-wrap{padding:12px}.fl-cloud-brand small{display:none}}
+  .fl-import-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.fl-import-card{border:1px solid #e3e8f0;border-radius:15px;padding:16px;background:#fff}.fl-import-card h3{margin:0 0 6px;font-size:18px}.fl-import-card p{margin:0 0 12px;color:#778196;line-height:1.7}.fl-import-file{display:block;border:1px dashed #cfd6e1;border-radius:12px;padding:12px;margin:10px 0;background:#fafbfc}.fl-import-file input{width:100%;font:inherit}.fl-import-help{font-size:12px;color:#7b8598;line-height:1.7;margin-top:8px}.fl-import-preview{margin-top:12px;border:1px solid #e6eaf0;border-radius:12px;overflow:auto;max-height:260px}.fl-import-preview table{border-collapse:collapse;width:100%;min-width:620px;font-size:12px}.fl-import-preview th,.fl-import-preview td{padding:8px 9px;border-bottom:1px solid #edf0f4;text-align:right;white-space:nowrap}.fl-import-preview th{background:#f6f8fb;position:sticky;top:0}.fl-import-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.fl-import-pill{background:#f2f5f9;border:1px solid #e1e6ed;border-radius:999px;padding:5px 9px;font-size:12px;color:#4c596f}.fl-import-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  @media(max-width:760px){.fl-import-grid{grid-template-columns:1fr}.fl-cloud-top{align-items:flex-start}.fl-cloud-grid{grid-template-columns:1fr}.fl-cloud-nav{position:static;display:flex;overflow:auto;gap:6px}.fl-cloud-nav button{width:auto;white-space:nowrap;padding:0 14px}.fl-cloud-stats{grid-template-columns:1fr 1fr}.fl-cloud-form{grid-template-columns:1fr}.fl-cloud-field.full{grid-column:auto}.fl-cloud-row{align-items:flex-start;flex-direction:column}.fl-cloud-row-actions{width:100%}.fl-cloud-row-actions button{flex:1}.fl-cloud-wrap{padding:12px}.fl-cloud-brand small{display:none}}
 </style>
 
 <div class="fl-cloud-admin" id="flCloudAdmin" aria-hidden="true">
@@ -1743,9 +1745,12 @@ window.FLOWER_LIGHT_SUPABASE = {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const safeSlug = value => String(value || '').trim().toLowerCase().replace(/[\s_]+/g,'-').replace(/[^a-z0-9\u0600-\u06ff-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'') || `section-${Date.now()}`;
   const bucket = String(cfg.storageBucket || 'product-images');
+  const EMPTY_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#f2f4f8"/><path d="M210 525l115-125 82 83 85-105 110 147H210z" fill="#c8d0dc"/><circle cx="310" cy="300" r="55" fill="#d8dee7"/><text x="400" y="650" text-anchor="middle" font-family="Arial" font-size="34" fill="#7b8598">Flower Light</text></svg>')}`;
+  const isExternalImage = value => /^(https?:|data:|blob:)/i.test(String(value || '').trim());
+  const isStoragePath = value => Boolean(value) && !isExternalImage(value);
 
   function imageUrl(path){
-    if (!path) return '';
+    if (!path) return EMPTY_IMAGE;
     if (/^(https?:|data:|blob:)/i.test(path)) return path;
     if (!db) return '';
     return db.storage.from(bucket).getPublicUrl(path).data.publicUrl;
@@ -1888,10 +1893,94 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   function renderImport(){
     const embedded=window.__FLOWER_LIGHT_EMBEDDED_PRODUCTS || window.FLOWER_LIGHT_PRODUCTS || {};
-    const sourceSections=[{name:'ثريات',slug:'chandeliers',items:embedded.chandeliers||[]},{name:'بلفون',slug:'balfon',items:embedded.balfon||[]},...(embedded.extraSections||[]).map((s,i)=>({name:s.name||`قسم ${i+1}`,slug:s.slug||safeSlug(s.name),description:s.description||'',items:s.items||[]}))];
-    const total=sourceSections.reduce((n,s)=>n+s.items.length,0);
-    layout(`<div class="fl-cloud-head"><div><h2>استيراد المنتجات الحالية</h2><p>هذه الخطوة تنقل الأقسام والصور المدمجة داخل index.html إلى Supabase مرة واحدة.</p></div></div><div class="fl-cloud-card"><div class="fl-cloud-note">وجدت ${sourceSections.length} أقسام و ${total} منتج في النسخة الحالية. يفضّل تشغيل الاستيراد عندما تكون قاعدة البيانات فارغة لتجنب التكرار.</div><button class="fl-cloud-btn primary" id="flStartImport" type="button" ${total?'':'disabled'}>بدء الاستيراد</button><div id="flImportStatus" style="margin-top:12px;color:#68758a"></div><div class="fl-cloud-progress"><span id="flImportBar"></span></div></div>`);
+    const sourceSections=[
+      {name:'ثريات',slug:'chandeliers',items:embedded.chandeliers||[]},
+      {name:'بلفون',slug:'balfon',items:embedded.balfon||[]},
+      ...(embedded.extraSections||[]).map((sec,i)=>({name:sec.name||`قسم ${i+1}`,slug:sec.slug||safeSlug(sec.name),description:sec.description||'',items:sec.items||[]}))
+    ];
+    const total=sourceSections.reduce((n,sec)=>n+sec.items.length,0);
+    layout(`<div class="fl-cloud-head"><div><h2>استيراد المنتجات</h2><p>اختر الاستيراد من الموقع الحالي أو من ملف Excel. النظام يتجنب تكرار المنتج إذا كان الموديل أو الاسم موجودًا داخل نفس القسم.</p></div></div>
+      <div class="fl-import-grid">
+        <section class="fl-import-card">
+          <h3>1) الاستيراد من الموقع الحالي</h3>
+          <p>ينقل الأقسام والمنتجات والصور المدمجة حاليًا داخل index.html إلى Supabase.</p>
+          <div class="fl-cloud-note">وجدت ${sourceSections.length} أقسام و ${total} منتج في النسخة الحالية.</div>
+          <button class="fl-cloud-btn primary" id="flStartImport" type="button" ${total?'':'disabled'}>استيراد من الموقع</button>
+          <div id="flImportStatus" style="margin-top:12px;color:#68758a"></div>
+          <div class="fl-cloud-progress"><span id="flImportBar"></span></div>
+        </section>
+        <section class="fl-import-card">
+          <h3>2) الاستيراد من Excel</h3>
+          <p>يدعم ملفات XLSX و XLS و CSV. الصف الأول يجب أن يحتوي أسماء الأعمدة.</p>
+          <label class="fl-import-file"><strong>ملف Excel</strong><input id="flExcelFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"></label>
+          <label class="fl-import-file"><strong>صور المنتجات (اختياري)</strong><input id="flExcelImages" type="file" accept="image/*" multiple></label>
+          <div class="fl-import-help">الأعمدة المقبولة: القسم، اسم المنتج، الموديل، الوصف، رابط الصورة، اسم ملف الصورة، الترتيب، الظهور. إذا كتبت اسم ملف الصورة مثل <b>WL-205.jpg</b> اختر نفس الصورة من الحقل أعلاه.</div>
+          <div class="fl-import-actions"><button class="fl-cloud-btn" id="flDownloadExcelTemplate" type="button">تحميل نموذج Excel</button><button class="fl-cloud-btn primary" id="flStartExcelImport" type="button" disabled>استيراد ملف Excel</button></div>
+          <div id="flExcelSummary"></div><div id="flExcelPreview" class="fl-import-preview" hidden></div>
+          <div id="flExcelStatus" style="margin-top:12px;color:#68758a"></div>
+          <div class="fl-cloud-progress"><span id="flExcelBar"></span></div>
+        </section>
+      </div>`);
     document.getElementById('flStartImport')?.addEventListener('click',()=>importEmbedded(sourceSections,total));
+    const excelInput=document.getElementById('flExcelFile');
+    const imageInput=document.getElementById('flExcelImages');
+    const excelBtn=document.getElementById('flStartExcelImport');
+    const summary=document.getElementById('flExcelSummary');
+    const preview=document.getElementById('flExcelPreview');
+    let parsedRows=[];
+    const parseNow=async()=>{
+      parsedRows=[]; excelBtn.disabled=true; preview.hidden=true; summary.innerHTML='';
+      const file=excelInput.files?.[0]; if(!file)return;
+      if(!window.XLSX){summary.innerHTML='<div class="fl-cloud-note bad">تعذر تحميل قارئ Excel. تحقق من اتصال الإنترنت ثم أعد فتح الصفحة.</div>';return;}
+      try{
+        const buffer=await file.arrayBuffer(); const wb=XLSX.read(buffer,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+        const raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+        parsedRows=normalizeExcelRows(raw);
+        const valid=parsedRows.filter(r=>r.category&&r.name); const sections=new Set(valid.map(r=>r.category));
+        summary.innerHTML=`<div class="fl-import-summary"><span class="fl-import-pill">${valid.length} منتج صالح</span><span class="fl-import-pill">${sections.size} قسم</span><span class="fl-import-pill">${raw.length-valid.length} صف متجاهل</span></div>`;
+        if(valid.length){preview.innerHTML=excelPreviewTable(valid.slice(0,12));preview.hidden=false;excelBtn.disabled=false;}
+        parsedRows=valid;
+      }catch(err){summary.innerHTML=`<div class="fl-cloud-note bad">تعذر قراءة الملف: ${esc(err.message||err)}</div>`;}
+    };
+    excelInput?.addEventListener('change',parseNow);
+    imageInput?.addEventListener('change',()=>{if(parsedRows.length) summary.insertAdjacentHTML('beforeend',`<div class="fl-import-help">تم اختيار ${imageInput.files.length} صورة للمطابقة حسب اسم الملف.</div>`);});
+    excelBtn?.addEventListener('click',()=>importExcelRows(parsedRows,Array.from(imageInput?.files||[])));
+    document.getElementById('flDownloadExcelTemplate')?.addEventListener('click',downloadExcelTemplate);
+  }
+
+  const headerKey=value=>String(value??'').trim().toLowerCase().replace(/[\s_\-\/\\()]+/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه');
+  function rowValue(row,aliases){
+    const map=new Map(Object.entries(row||{}).map(([k,v])=>[headerKey(k),v]));
+    for(const a of aliases){const k=headerKey(a);if(map.has(k))return map.get(k);} return '';
+  }
+  function boolValue(value,defaultValue=true){
+    const v=String(value??'').trim().toLowerCase(); if(!v)return defaultValue;
+    if(['0','false','no','off','مخفي','لا','غيرظاهر','غير ظاهر'].includes(v))return false;
+    if(['1','true','yes','on','ظاهر','نعم'].includes(v))return true; return defaultValue;
+  }
+  function normalizeExcelRows(raw){
+    return (raw||[]).map((row,i)=>({
+      category:String(rowValue(row,['القسم','الفئة','category','section'])).trim(),
+      name:String(rowValue(row,['اسم المنتج','المنتج','الاسم','name','product','product name'])).trim(),
+      model:String(rowValue(row,['الموديل','موديل','model','sku','code'])).trim(),
+      caption:String(rowValue(row,['الوصف','description','caption','details'])).trim(),
+      imageUrl:String(rowValue(row,['رابط الصورة','رابط صوره','الصورة','صورة','image url','image_url','image','photo url'])).trim(),
+      imageFile:String(rowValue(row,['اسم ملف الصورة','اسم ملف الصوره','ملف الصورة','image file','image filename','filename'])).trim(),
+      sort_order:Number(rowValue(row,['الترتيب','ترتيب','sort order','sort_order','order']))||i,
+      is_visible:boolValue(rowValue(row,['الظهور','ظاهر','is visible','is_visible','visible']),true)
+    }));
+  }
+  function excelPreviewTable(rows){
+    return `<table><thead><tr><th>القسم</th><th>المنتج</th><th>الموديل</th><th>الصورة</th><th>الظهور</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.category)}</td><td>${esc(r.name)}</td><td>${esc(r.model||'-')}</td><td>${esc(r.imageFile||r.imageUrl||'-')}</td><td>${r.is_visible?'ظاهر':'مخفي'}</td></tr>`).join('')}</tbody></table>`;
+  }
+  function downloadExcelTemplate(){
+    if(!window.XLSX){notify('تعذر تحميل قارئ Excel');return;}
+    const rows=[
+      {'القسم':'جداريات','اسم المنتج':'جدارية LED دائرية','الموديل':'WL-205','الوصف':'إضاءة جدارية داخلية','رابط الصورة':'https://example.com/WL-205.jpg','اسم ملف الصورة':'','الترتيب':1,'الظهور':'نعم'},
+      {'القسم':'ثريات','اسم المنتج':'ثريا مودرن','الموديل':'CH-101','الوصف':'ثريا مودرن','رابط الصورة':'','اسم ملف الصورة':'CH-101.jpg','الترتيب':2,'الظهور':'نعم'}
+    ];
+    const ws=XLSX.utils.json_to_sheet(rows); ws['!cols']=[{wch:18},{wch:28},{wch:16},{wch:34},{wch:42},{wch:24},{wch:10},{wch:10}];
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'المنتجات'); XLSX.writeFile(wb,'Flower-Light-Products-Template.xlsx');
   }
 
   async function openCategoryForm(cat=null){
@@ -1900,7 +1989,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     document.getElementById('flCategoryForm').addEventListener('submit',async e=>{e.preventDefault(); const name=document.getElementById('flCatName').value.trim(); const payload={name,description:document.getElementById('flCatDesc').value.trim(),sort_order:Number(document.getElementById('flCatSort').value)||0,is_visible:document.getElementById('flCatVisible').checked}; if(!cat)payload.slug=safeSlug(name); let res=cat?await db.from('categories').update(payload).eq('id',cat.id):await db.from('categories').insert(payload).select().single(); if(res.error){notify('خطأ: '+res.error.message);return;} closeModal();await refresh();await loadCloudProducts();renderApp();notify('تم حفظ القسم');});
   }
 
-  async function deleteCategory(id){ const cat=categories.find(c=>c.id===id); if(!cat||!confirm(`حذف قسم «${cat.name}» وكل منتجاته؟`))return; const paths=products.filter(p=>p.category_id===id&&p.image_path).map(p=>p.image_path); const {error}=await db.from('categories').delete().eq('id',id); if(error){notify('تعذر الحذف: '+error.message);return;} if(paths.length) await db.storage.from(bucket).remove(paths); await refresh(); await loadCloudProducts(); renderApp(); notify('تم حذف القسم'); }
+  async function deleteCategory(id){ const cat=categories.find(c=>c.id===id); if(!cat||!confirm(`حذف قسم «${cat.name}» وكل منتجاته؟`))return; const paths=products.filter(p=>p.category_id===id&&isStoragePath(p.image_path)).map(p=>p.image_path); const {error}=await db.from('categories').delete().eq('id',id); if(error){notify('تعذر الحذف: '+error.message);return;} if(paths.length) await db.storage.from(bucket).remove(paths); await refresh(); await loadCloudProducts(); renderApp(); notify('تم حذف القسم'); }
 
   async function fileToOptimizedBlob(file){
     if(!file) return null;
@@ -1910,36 +1999,77 @@ window.FLOWER_LIGHT_SUPABASE = {
     return await new Promise(resolve=>canvas.toBlob(blob=>resolve(blob||file),'image/webp',.82));
   }
   function dataUrlToBlob(dataUrl){ const [head,body]=dataUrl.split(','); const mime=(head.match(/data:(.*?);/)||[])[1]||'image/jpeg'; const bin=atob(body); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:mime}); }
-  async function uploadBlob(blob,categoryId,base='product'){ const ext=(blob.type||'image/webp').includes('png')?'png':(blob.type||'').includes('jpeg')?'jpg':'webp'; const path=`${categoryId}/${crypto.randomUUID()}-${safeSlug(base)}.${ext}`; const {error}=await db.storage.from(bucket).upload(path,blob,{contentType:blob.type||'image/webp',upsert:false,cacheControl:'31536000'}); if(error)throw error; return path; }
+  async function uploadBlob(blob,categoryId,base='product'){ const ext=(blob.type||'image/webp').includes('png')?'png':(blob.type||'').includes('jpeg')?'jpg':'webp'; const path=`${categoryId}/${crypto.randomUUID()}.${ext}`; const {error}=await db.storage.from(bucket).upload(path,blob,{contentType:blob.type||'image/webp',upsert:false,cacheControl:'31536000'}); if(error)throw error; return path; }
 
   function openProductForm(prod=null){
     if(!categories.length){notify('أضف قسمًا أولًا');return;}
     const cid=prod?.category_id||selectedCategory||categories[0].id; const options=categories.map(c=>`<option value="${c.id}" ${c.id===cid?'selected':''}>${esc(c.name)}</option>`).join('');
     openModal(prod?'تعديل المنتج':'إضافة منتج',`<form id="flProductForm"><div class="fl-cloud-form"><div class="fl-cloud-field"><label>القسم</label><select id="flProdCat">${options}</select></div><div class="fl-cloud-field"><label>الترتيب</label><input id="flProdSort" type="number" min="0" step="1" value="${Number(prod?.sort_order||0)}"></div><div class="fl-cloud-field"><label>اسم المنتج</label><input id="flProdName" required value="${esc(prod?.name||'')}" placeholder="مثال: جدارية LED"></div><div class="fl-cloud-field"><label>الموديل</label><input id="flProdModel" value="${esc(prod?.model||'')}" placeholder="مثال: WL-205"></div><div class="fl-cloud-field full"><label>الوصف</label><textarea id="flProdCaption" placeholder="وصف مختصر">${esc(prod?.caption||'')}</textarea></div><div class="fl-cloud-field full"><label>${prod?'صورة جديدة (اختياري)':'صورة المنتج'}</label><input id="flProdImage" type="file" accept="image/*" ${prod?'':'required'}></div>${prod?.image_path?`<div class="fl-cloud-field full"><img class="fl-cloud-preview" src="${esc(imageUrl(prod.image_path))}" alt="صورة المنتج الحالية"></div>`:''}<label class="fl-cloud-check full"><input id="flProdVisible" type="checkbox" ${prod?.is_visible===false?'':'checked'}> إظهار المنتج للزوار</label></div><div class="fl-cloud-dialog-actions"><button class="fl-cloud-btn primary" id="flProdSave" type="submit">حفظ</button><button class="fl-cloud-btn" id="flProdCancel" type="button">إلغاء</button></div></form>`);
     document.getElementById('flProdCancel').addEventListener('click',closeModal);
-    document.getElementById('flProductForm').addEventListener('submit',async e=>{e.preventDefault();const save=document.getElementById('flProdSave');save.disabled=true;save.textContent='جاري الحفظ...';try{const category_id=document.getElementById('flProdCat').value;const file=document.getElementById('flProdImage').files?.[0];let image_path=prod?.image_path||'';if(file){const blob=await fileToOptimizedBlob(file);const nextPath=await uploadBlob(blob,category_id,document.getElementById('flProdName').value);if(prod?.image_path)await db.storage.from(bucket).remove([prod.image_path]);image_path=nextPath;}if(!image_path)throw new Error('اختر صورة للمنتج');const payload={category_id,name:document.getElementById('flProdName').value.trim(),model:document.getElementById('flProdModel').value.trim(),caption:document.getElementById('flProdCaption').value.trim(),image_path,sort_order:Number(document.getElementById('flProdSort').value)||0,is_visible:document.getElementById('flProdVisible').checked};const res=prod?await db.from('products').update(payload).eq('id',prod.id):await db.from('products').insert(payload);if(res.error)throw res.error;selectedCategory=category_id;closeModal();await refresh();await loadCloudProducts();renderProducts();notify('تم حفظ المنتج وظهر التعديل على الموقع');}catch(err){notify('تعذر الحفظ: '+(err.message||err));save.disabled=false;save.textContent='حفظ';}});
+    document.getElementById('flProductForm').addEventListener('submit',async e=>{e.preventDefault();const save=document.getElementById('flProdSave');save.disabled=true;save.textContent='جاري الحفظ...';try{const category_id=document.getElementById('flProdCat').value;const file=document.getElementById('flProdImage').files?.[0];let image_path=prod?.image_path||'';if(file){const blob=await fileToOptimizedBlob(file);const nextPath=await uploadBlob(blob,category_id,document.getElementById('flProdName').value);if(isStoragePath(prod?.image_path))await db.storage.from(bucket).remove([prod.image_path]);image_path=nextPath;}if(!image_path)throw new Error('اختر صورة للمنتج');const payload={category_id,name:document.getElementById('flProdName').value.trim(),model:document.getElementById('flProdModel').value.trim(),caption:document.getElementById('flProdCaption').value.trim(),image_path,sort_order:Number(document.getElementById('flProdSort').value)||0,is_visible:document.getElementById('flProdVisible').checked};const res=prod?await db.from('products').update(payload).eq('id',prod.id):await db.from('products').insert(payload);if(res.error)throw res.error;selectedCategory=category_id;closeModal();await refresh();await loadCloudProducts();renderProducts();notify('تم حفظ المنتج وظهر التعديل على الموقع');}catch(err){notify('تعذر الحفظ: '+(err.message||err));save.disabled=false;save.textContent='حفظ';}});
   }
 
-  async function deleteProduct(id){ const p=products.find(x=>x.id===id); if(!p||!confirm(`حذف «${p.name||'المنتج'}»؟`))return; const {error}=await db.from('products').delete().eq('id',id); if(error){notify('تعذر الحذف: '+error.message);return;} if(p.image_path)await db.storage.from(bucket).remove([p.image_path]);await refresh();await loadCloudProducts();renderProducts();notify('تم حذف المنتج'); }
+  async function deleteProduct(id){ const p=products.find(x=>x.id===id); if(!p||!confirm(`حذف «${p.name||'المنتج'}»؟`))return; const {error}=await db.from('products').delete().eq('id',id); if(error){notify('تعذر الحذف: '+error.message);return;} if(isStoragePath(p.image_path))await db.storage.from(bucket).remove([p.image_path]);await refresh();await loadCloudProducts();renderProducts();notify('تم حذف المنتج'); }
 
+  function importProductKey(categoryId,item){
+    const ident=String(item.model||item.name||'').trim().toLowerCase().replace(/\s+/g,' ');
+    return `${categoryId}::${ident}`;
+  }
+  async function ensureImportCategory(name,slugHint='',description=''){
+    const wantedName=String(name||'').trim(); const slug=safeSlug(slugHint||wantedName);
+    let cat=categories.find(c=>c.slug===slug || String(c.name||'').trim().toLowerCase()===wantedName.toLowerCase());
+    if(cat)return cat;
+    const {data,error}=await db.from('categories').insert({name:wantedName||'قسم',slug,description:description||'',sort_order:categories.length,is_visible:true}).select().single();
+    if(error){
+      if(String(error.code)==='23505'){await refresh();return categories.find(c=>c.slug===slug || String(c.name||'').trim().toLowerCase()===wantedName.toLowerCase());}
+      throw error;
+    }
+    categories.push(data); return data;
+  }
+  async function importOneProduct(cat,item,imageFilesByName,sortFallback){
+    const key=importProductKey(cat.id,item);
+    const duplicate=products.some(p=>importProductKey(p.category_id,p)===key);
+    if(duplicate)return {skipped:true};
+    let path='';
+    if(item.imageFile && imageFilesByName?.has(item.imageFile.toLowerCase())){
+      const file=imageFilesByName.get(item.imageFile.toLowerCase()); const blob=await fileToOptimizedBlob(file); path=await uploadBlob(blob,cat.id,item.name||item.model||'product');
+    }else if(item.image?.startsWith('data:')){
+      path=await uploadBlob(dataUrlToBlob(item.image),cat.id,item.name||item.model||'product');
+    }else if(item.imageUrl && /^https?:\/\//i.test(item.imageUrl)){
+      path=item.imageUrl;
+    }else if(item.image?.startsWith('http')){
+      path=item.image;
+    }
+    const payload={category_id:cat.id,name:item.name||item.caption||'منتج',model:item.model||'',caption:item.caption||item.alt||'',image_path:path,sort_order:Number.isFinite(Number(item.sort_order))?Number(item.sort_order):sortFallback,is_visible:item.is_visible!==false};
+    const {data,error}=await db.from('products').insert(payload).select().single(); if(error)throw error; products.push(data); return {skipped:false};
+  }
   async function importEmbedded(sections,total){
-    if(products.length && !confirm('قاعدة البيانات تحتوي منتجات بالفعل. المتابعة قد تكرر بعض المنتجات. هل تريد الاستمرار؟'))return;
-    const btn=document.getElementById('flStartImport'),status=document.getElementById('flImportStatus'),bar=document.getElementById('flImportBar');btn.disabled=true;let done=0;
+    const btn=document.getElementById('flStartImport'),status=document.getElementById('flImportStatus'),bar=document.getElementById('flImportBar');btn.disabled=true;let done=0,skipped=0;
     try{
       for(const sec of sections){
-        let cat=categories.find(c=>c.slug===sec.slug);
-        if(!cat){const {data,error}=await db.from('categories').insert({name:sec.name,slug:sec.slug,description:sec.description||'',sort_order:categories.length,is_visible:true}).select().single();if(error)throw error;cat=data;categories.push(cat);}
+        const cat=await ensureImportCategory(sec.name,sec.slug,sec.description||'');
         for(let i=0;i<sec.items.length;i++){
           const item=sec.items[i]; status.textContent=`جاري نقل ${sec.name}: ${i+1} من ${sec.items.length}`;
-          let path='';
-          if(item.image?.startsWith('data:')) path=await uploadBlob(dataUrlToBlob(item.image),cat.id,item.name||item.model||`product-${i+1}`);
-          else if(item.image?.startsWith('http')) { try{ const resp=await fetch(item.image); if(resp.ok)path=await uploadBlob(await resp.blob(),cat.id,item.name||`product-${i+1}`); }catch{} }
-          const {error}=await db.from('products').insert({category_id:cat.id,name:item.name||item.caption||`منتج ${i+1}`,model:item.model||'',caption:item.caption||item.alt||'',image_path:path,sort_order:i,is_visible:true}); if(error)throw error;
+          const result=await importOneProduct(cat,item,null,i); if(result.skipped)skipped++;
           done++; bar.style.width=`${total?Math.round(done/total*100):100}%`;
         }
       }
-      status.textContent='اكتمل الاستيراد بنجاح.'; await refresh(); await loadCloudProducts(); notify('تم نقل المنتجات إلى Supabase');
+      status.textContent=`اكتمل الاستيراد. تمت معالجة ${done} منتج${skipped?`، وتخطي ${skipped} مكرر`:''}.`; await refresh(); await loadCloudProducts(); notify('تم استيراد منتجات الموقع إلى Supabase');
     }catch(err){status.textContent='توقف الاستيراد: '+(err.message||err);notify('حدث خطأ أثناء الاستيراد');btn.disabled=false;}
+  }
+  async function importExcelRows(rows,imageFiles=[]){
+    if(!rows.length)return;
+    const btn=document.getElementById('flStartExcelImport'),status=document.getElementById('flExcelStatus'),bar=document.getElementById('flExcelBar'); btn.disabled=true;
+    const imageMap=new Map(imageFiles.map(f=>[f.name.toLowerCase(),f])); let done=0,skipped=0;
+    try{
+      for(let i=0;i<rows.length;i++){
+        const item=rows[i]; status.textContent=`جاري استيراد ${i+1} من ${rows.length}: ${item.name}`;
+        const cat=await ensureImportCategory(item.category,item.category,'');
+        const result=await importOneProduct(cat,item,imageMap,i); if(result.skipped)skipped++;
+        done++; bar.style.width=`${Math.round(done/rows.length*100)}%`;
+      }
+      status.textContent=`اكتمل استيراد Excel: ${done-skipped} منتج جديد${skipped?`، ${skipped} مكرر تم تخطيه`:''}.`; await refresh(); await loadCloudProducts(); notify('تم استيراد ملف Excel بنجاح');
+    }catch(err){status.textContent='توقف استيراد Excel: '+(err.message||err);notify('حدث خطأ أثناء استيراد Excel');btn.disabled=false;}
   }
 
   (async()=>{
