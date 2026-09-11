@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ff9f0a" />
   <meta name="description" content="Digital Business Card" />
   <title>Digital Business Card</title>
-  <meta name="generator" content="Clean V2 · Supabase-backed admin" />
+  <meta name="generator" content="Flower Light V5 · optimized analytics + PDF catalog" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -496,6 +496,7 @@
       display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;
     }
     .catalog-download svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .catalog-download:disabled{opacity:.58;cursor:wait;transform:none!important;box-shadow:none}
     .catalog-grid{
       display:grid;grid-template-columns:1fr;gap:14px;padding:14px;
     }
@@ -833,6 +834,10 @@
       </header>
       <div class="catalog-toolbar">
         <p class="catalog-note" id="catalogNote">استعرض الأقسام والمنتجات.</p>
+        <button class="catalog-download" id="catalogDownloadPdf" type="button" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+          <span id="catalogDownloadPdfLabel">تحميل الكتالوج PDF</span>
+        </button>
       </div>
       <div class="catalog-tabs" dir="rtl"></div>
       <div id="dynamicCatalogEmpty" class="extra-section-intro" style="padding:22px 14px;text-align:center;">لا توجد أقسام أو منتجات بعد.</div>
@@ -921,20 +926,6 @@ window.FLOWER_LIGHT_ANALYTICS_CONFIG = {
   script.referrerPolicy = 'strict-origin-when-cross-origin';
   document.head.appendChild(script);
 
-  // Static links use data-track attributes so clicks can be measured without
-  // mixing analytics code into the page markup logic.
-  document.addEventListener('click', (event) => {
-    const target = event.target.closest('[data-track]');
-    if (!target) return;
-
-    const params = {};
-    if (target.dataset.trackLocation) params.location = target.dataset.trackLocation;
-    if (target.dataset.trackLabel) params.label = target.dataset.trackLabel;
-    if (target.dataset.trackBranch) params.branch = target.dataset.trackBranch;
-    if (target.href) params.link_url = target.href;
-
-    window.flTrack(target.dataset.track, params);
-  }, { capture: true });
 })();
 
 </script>
@@ -943,6 +934,7 @@ window.FLOWER_LIGHT_ANALYTICS_CONFIG = {
 window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extraSections: [] };
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 (() => {
   'use strict';
@@ -1112,9 +1104,216 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     });
   }
 
+  const catalogDownloadPdf = $('#catalogDownloadPdf');
+  const catalogDownloadPdfLabel = $('#catalogDownloadPdfLabel');
+  let catalogPdfBusy = false;
+  let publicToastTimer = 0;
+
+  function showPublicToast(message, duration = 3000) {
+    const toast = $('#toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    window.clearTimeout(publicToastTimer);
+    publicToastTimer = window.setTimeout(() => toast.classList.remove('show'), duration);
+  }
+
+  function catalogPdfEntries() {
+    const data = window.FLOWER_LIGHT_PRODUCTS || {extraSections:[]};
+    const sections = Array.isArray(data.extraSections) ? data.extraSections : [];
+    return sections.flatMap(section => {
+      const items = Array.isArray(section.items) ? section.items : [];
+      return items.filter(item => item?.image).map(item => ({ section, item }));
+    });
+  }
+
+  function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 2) {
+    const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return y;
+    const lines = [];
+    let line = '';
+    words.forEach(word => {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width <= maxWidth || !line) line = test;
+      else { lines.push(line); line = word; }
+    });
+    if (line) lines.push(line);
+    const visible = lines.slice(0, maxLines);
+    if (lines.length > maxLines && visible.length) {
+      let last = visible[visible.length - 1];
+      while (last && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
+      visible[visible.length - 1] = `${last}…`;
+    }
+    visible.forEach((part, index) => ctx.fillText(part, x, y + index * lineHeight, maxWidth));
+    return y + visible.length * lineHeight;
+  }
+
+  async function loadCatalogPdfImage(src) {
+    const response = await fetch(src, { mode: 'cors', cache: 'force-cache' });
+    if (!response.ok) throw new Error(`Image HTTP ${response.status}`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Image decode failed'));
+        img.src = objectUrl;
+      });
+      return { image, objectUrl };
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl);
+      throw error;
+    }
+  }
+
+  async function createCatalogPdfPage(section, item, pageNumber, totalPages) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 1414;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Header
+    ctx.fillStyle = '#ff9f0a';
+    ctx.fillRect(0, 0, canvas.width, 16);
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#8a5400';
+    ctx.font = '700 30px Tajawal, Arial, sans-serif';
+    ctx.fillText(String(section?.name || 'القسم'), 930, 72, 870);
+    ctx.fillStyle = '#171717';
+    ctx.font = '800 42px Tajawal, Arial, sans-serif';
+    wrapCanvasText(ctx, productDisplayName(item), 930, 124, 870, 48, 2);
+
+    // Product image area
+    const box = { x: 65, y: 205, w: 870, h: 870 };
+    ctx.fillStyle = '#f7f6f3';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    let imageFailed = false;
+    try {
+      const loaded = await loadCatalogPdfImage(item.image);
+      try {
+        const img = loaded.image;
+        const scale = Math.min(box.w / img.naturalWidth, box.h / img.naturalHeight);
+        const width = Math.max(1, img.naturalWidth * scale);
+        const height = Math.max(1, img.naturalHeight * scale);
+        const x = box.x + (box.w - width) / 2;
+        const y = box.y + (box.h - height) / 2;
+        ctx.drawImage(img, x, y, width, height);
+      } finally {
+        URL.revokeObjectURL(loaded.objectUrl);
+      }
+    } catch (error) {
+      imageFailed = true;
+      ctx.fillStyle = '#8a8178';
+      ctx.font = '600 28px Tajawal, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('تعذر تحميل صورة هذا المنتج', canvas.width / 2, box.y + box.h / 2);
+      ctx.textAlign = 'right';
+    }
+
+    // Product details
+    let detailY = 1135;
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    if (item?.model) {
+      ctx.fillStyle = '#5d554c';
+      ctx.font = '600 26px Tajawal, Arial, sans-serif';
+      ctx.fillText(`الموديل: ${String(item.model)}`, 930, detailY, 870);
+      detailY += 42;
+    }
+    if (item?.caption) {
+      ctx.fillStyle = '#5d554c';
+      ctx.font = '500 24px Tajawal, Arial, sans-serif';
+      detailY = wrapCanvasText(ctx, item.caption, 930, detailY, 870, 34, 3);
+    }
+
+    // Footer / page number
+    ctx.strokeStyle = '#eee8df';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(65, 1338);
+    ctx.lineTo(935, 1338);
+    ctx.stroke();
+    ctx.fillStyle = '#9a9188';
+    ctx.font = '500 20px Tajawal, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.direction = 'ltr';
+    ctx.fillText(`${pageNumber} / ${totalPages}`, 65, 1378);
+    ctx.textAlign = 'right';
+    ctx.direction = 'rtl';
+    const profile = window.FLOWER_LIGHT_PROFILE || {};
+    const brand = String(profile.brand_name || profile.company_name || 'Flower Light').trim();
+    ctx.fillText(brand, 935, 1378, 600);
+
+    return { canvas, imageFailed };
+  }
+
+  async function downloadCatalogPdf() {
+    if (catalogPdfBusy) return;
+    const entries = catalogPdfEntries();
+    if (!entries.length) {
+      showPublicToast('لا توجد منتجات ظاهرة لإضافتها إلى الكتالوج.');
+      return;
+    }
+    const JsPdf = window.jspdf?.jsPDF;
+    if (!JsPdf) {
+      showPublicToast('تعذر تحميل أداة PDF. تحقق من الاتصال ثم أعد المحاولة.', 4200);
+      return;
+    }
+
+    catalogPdfBusy = true;
+    if (catalogDownloadPdf) catalogDownloadPdf.disabled = true;
+    const originalLabel = catalogDownloadPdfLabel?.textContent || 'تحميل الكتالوج PDF';
+    let failedImages = 0;
+    try {
+      try {
+        await document.fonts?.load('800 42px Tajawal');
+        await document.fonts?.load('500 24px Tajawal');
+      } catch (_) {}
+
+      const pdf = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      for (let index = 0; index < entries.length; index += 1) {
+        if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = `جاري التجهيز ${index + 1}/${entries.length}`;
+        const { section, item } = entries[index];
+        const { canvas, imageFailed } = await createCatalogPdfPage(section, item, index + 1, entries.length);
+        if (imageFailed) failedImages += 1;
+        if (index > 0) pdf.addPage('a4', 'portrait');
+        const pageImage = canvas.toDataURL('image/jpeg', 0.80);
+        pdf.addImage(pageImage, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+        await new Promise(resolve => window.requestAnimationFrame(resolve));
+      }
+
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'flower-light-catalog.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      trackEvent('catalog_download', { label: 'كتالوج المنتجات PDF', products_count: entries.length, failed_images: failedImages });
+      showPublicToast(failedImages ? `تم تجهيز الكتالوج، وتعذر إدراج ${failedImages} صورة.` : `تم تحميل الكتالوج: ${entries.length} منتج.` , 4200);
+    } catch (error) {
+      console.warn('[Catalog PDF] generation failed', error);
+      showPublicToast('تعذر تجهيز ملف PDF. أعد المحاولة بعد التأكد من اتصال الإنترنت.', 4500);
+    } finally {
+      catalogPdfBusy = false;
+      if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = originalLabel;
+      if (catalogDownloadPdf) catalogDownloadPdf.disabled = catalogPdfEntries().length === 0;
+    }
+  }
+
+  catalogDownloadPdf?.addEventListener('click', downloadCatalogPdf);
+
   function renderProducts() {
     const data = window.FLOWER_LIGHT_PRODUCTS || {extraSections:[]};
     renderExtraSections(data);
+    if (catalogDownloadPdf) catalogDownloadPdf.disabled = catalogPdfBusy || catalogPdfEntries().length === 0;
   }
 
   window.flRenderProducts = renderProducts;
@@ -1367,6 +1566,15 @@ window.FLOWER_LIGHT_SUPABASE = {
   .fl-analytics-rank-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fl-analytics-count{min-width:42px;text-align:center;border-radius:999px;padding:4px 9px;background:#fff3dd;color:#a65b00;font-weight:900}
   @media(max-width:720px){.fl-analytics-columns{grid-template-columns:1fr}}
+  .fl-analytics-chart-card{background:#fff;border:1px solid #e3e8f0;border-radius:16px;padding:16px;margin-bottom:14px;overflow:hidden}
+  .fl-analytics-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .fl-analytics-chart-head h3{margin:0 0 4px;font-size:17px}.fl-analytics-chart-head p{margin:0;color:#7b8598;font-size:12px;line-height:1.6}
+  .fl-analytics-chart-head select{min-height:40px;border:1px solid #d8dee8;border-radius:10px;padding:0 10px;background:#fff;font:inherit;color:#263248}
+  .fl-analytics-chart-wrap{width:100%;overflow:hidden;border-radius:12px;background:#fafbfc;border:1px solid #edf0f4}
+  .fl-analytics-chart-wrap svg{display:block;width:100%;height:auto;min-height:220px}
+  .fl-chart-grid{stroke:#e8ecf2;stroke-width:1}.fl-chart-line{fill:none;stroke:#ff9f0a;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .fl-chart-area{fill:rgba(255,159,10,.11)}.fl-chart-dot{fill:#fff;stroke:#ff9f0a;stroke-width:2}.fl-chart-text{fill:#7d8799;font-size:11px;font-family:Tajawal,Arial,sans-serif}
+  .fl-chart-value{fill:#263248;font-size:11px;font-weight:800;font-family:Tajawal,Arial,sans-serif}.fl-chart-empty{padding:34px 12px;text-align:center;color:#7d8799}
   .fl-cloud-products{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}.fl-cloud-product{border:1px solid #e4e9f0;border-radius:14px;overflow:hidden;background:#fff}.fl-cloud-product img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#f2f4f8}.fl-cloud-product-body{padding:11px}.fl-cloud-product-body strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fl-cloud-product-body small{color:#7b8596;display:block;margin:4px 0 9px;min-height:18px}.fl-cloud-product-actions{display:flex;gap:6px}.fl-cloud-product-actions button{flex:1}
   .fl-cloud-overlay{position:fixed;inset:0;z-index:100010;background:rgba(10,18,32,.48);display:none;align-items:flex-start;justify-content:center;padding:28px 12px;overflow:auto}.fl-cloud-overlay.open{display:flex}.fl-cloud-dialog{width:min(650px,100%);background:#fff;border-radius:18px;padding:18px;margin:auto}.fl-cloud-dialog-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}.fl-cloud-dialog-head h3{margin:0}.fl-cloud-close{width:40px;height:40px;border:0;border-radius:10px;background:#f0f2f6;font-size:24px;cursor:pointer}.fl-cloud-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fl-cloud-field{display:grid;gap:6px}.fl-cloud-field.full{grid-column:1/-1}.fl-cloud-field label{font-size:13px;font-weight:800}.fl-cloud-field input,.fl-cloud-field textarea,.fl-cloud-field select{width:100%;min-height:44px;border:1px solid #d8dee8;border-radius:10px;padding:9px 11px;font:inherit;box-sizing:border-box}.fl-cloud-field textarea{min-height:90px;resize:vertical}.fl-cloud-check{display:flex;align-items:center;gap:8px;min-height:44px}.fl-cloud-check input{width:20px;height:20px}.fl-cloud-preview{max-width:180px;max-height:180px;border-radius:12px;border:1px solid #e2e7ef;object-fit:cover}.fl-cloud-dialog-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:16px;flex-wrap:wrap}.fl-cloud-toast{position:fixed;z-index:100020;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#172033;color:#fff;border-radius:12px;padding:11px 16px;opacity:0;pointer-events:none;transition:.2s;max-width:min(90vw,480px);text-align:center}.fl-cloud-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .fl-cloud-login{max-width:460px;margin:70px auto;background:#fff;border:1px solid #e2e7ef;border-radius:18px;padding:22px}.fl-cloud-login h2{margin:0 0 7px}.fl-cloud-login p{color:#778196;line-height:1.7}.fl-cloud-login form{display:grid;gap:11px}.fl-cloud-empty{text-align:center;color:#7d8799;padding:30px 10px}.fl-cloud-setup code{direction:ltr;display:block;background:#f4f6fa;border-radius:10px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-all}
@@ -1446,32 +1654,42 @@ window.FLOWER_LIGHT_SUPABASE = {
     if(!db || adminMode || !eventName) return;
     try{
       const metadata={};
-      ['source','category','panel_id','product_name','product_category','product_model','product_reference','direction','method','label','branch'].forEach(key=>{
+      ['source','category','panel_id','product_name','product_category','product_model','product_reference','direction','method','label','branch','products_count','failed_images'].forEach(key=>{
         if(params?.[key]!==undefined && params?.[key]!==null) metadata[key]=String(params[key]).slice(0,300);
       });
-      const payload={
-        event_name:String(eventName).slice(0,64),
-        event_label:analyticsLabel(eventName,params).slice(0,180),
-        visitor_id:String(analyticsVisitorId).slice(0,80),
-        session_id:String(analyticsSessionId).slice(0,80),
-        page_path:String(location.pathname||'/').slice(0,300),
-        metadata
-      };
-      const {error}=await db.from('analytics_events').insert(payload);
-      if(error && String(error.code)!=='42P01') console.warn('[Site analytics] save failed',error.message||error);
+      const {error}=await db.rpc('log_site_event',{
+        p_event_name:String(eventName).slice(0,64),
+        p_event_label:analyticsLabel(eventName,params).slice(0,180),
+        p_visitor_id:String(analyticsVisitorId).slice(0,80),
+        p_session_id:String(analyticsSessionId).slice(0,80),
+        p_page_path:String(location.pathname||'/').slice(0,300),
+        p_metadata:metadata
+      });
+      if(error && String(error.code)!=='42883') console.warn('[Site analytics] save failed',error.message||error);
     }catch(error){console.warn('[Site analytics] save failed',error);}
   }
   window.flTrack = function(eventName,params={}){
-    try{baseAnalyticsTracker?.(eventName,params);}catch(_){}
+    // GA4 already sends its automatic page_view; avoid counting it twice there.
+    if(eventName!=='page_view'){try{baseAnalyticsTracker?.(eventName,params);}catch(_){}}
     void saveAnalyticsEvent(eventName,params);
   };
   if(db && !adminMode){
     window.setTimeout(()=>window.flTrack('page_view',{source:'public_site'}),0);
+
+    // One delegated listener for every static/dynamic element that declares data-track.
+    // Keeping this here makes Supabase analytics work even when GA4 is not configured.
     document.addEventListener('click',event=>{
-      const download=event.target.closest?.('.catalog-download,[data-track="catalog_download"]');
-      if(download) window.flTrack('catalog_download',{label:download.dataset?.trackLabel||download.textContent?.trim()||'الكتالوج'});
+      const target=event.target.closest?.('[data-track]');
+      if(!target)return;
+      const params={};
+      if(target.dataset.trackLocation)params.location=target.dataset.trackLocation;
+      if(target.dataset.trackBranch)params.branch=target.dataset.trackBranch;
+      params.label=target.dataset.trackLabel || target.getAttribute('aria-label') || target.textContent?.trim().replace(/\s+/g,' ').slice(0,180) || '';
+      if(target.href)params.link_url=target.href;
+      window.flTrack(target.dataset.track,params);
     },{capture:true});
   }
+
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const leadPhoneDigits = value => String(value || '').replace(/\D/g,'');
@@ -2016,35 +2234,81 @@ window.FLOWER_LIGHT_SUPABASE = {
     if(!list.length)return `<div class="fl-cloud-empty">${esc(emptyText)}</div>`;
     return `<div class="fl-analytics-rank">${list.map(item=>`<div class="fl-analytics-rank-row"><strong title="${esc(item.label||'غير مسمى')}">${esc(item.label||'غير مسمى')}</strong><span class="fl-analytics-count">${Number(item.count||0).toLocaleString('ar-SA')}</span></div>`).join('')}</div>`;
   }
+  const analyticsMetricLabels={
+    visits:'الزيارات',
+    products_open:'فتح المنتجات',
+    catalog_downloads:'تحميل الكتالوج',
+    lead_submissions:'بيانات العملاء'
+  };
+  function analyticsChartSvg(rows,metric='visits'){
+    const data=(Array.isArray(rows)?rows:[]).map(row=>({day:String(row.day||''),value:Number(row?.[metric]||0)}));
+    if(!data.length)return '<div class="fl-chart-empty">لا توجد بيانات زمنية بعد.</div>';
+    const width=820,height=270,padL=48,padR=20,padT=24,padB=45;
+    const innerW=width-padL-padR,innerH=height-padT-padB;
+    const max=Math.max(1,...data.map(x=>x.value));
+    const point=(x,i)=>({x:padL+(data.length===1?innerW/2:(i/(data.length-1))*innerW),y:padT+innerH-(x.value/max)*innerH});
+    const pts=data.map(point);
+    const line=pts.map((p,i)=>`${i?'L':'M'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    const area=`M ${pts[0].x.toFixed(1)} ${(padT+innerH).toFixed(1)} `+pts.map(p=>`L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')+` L ${pts[pts.length-1].x.toFixed(1)} ${(padT+innerH).toFixed(1)} Z`;
+    const yTicks=[0,.25,.5,.75,1].map(r=>{
+      const y=padT+innerH-(r*innerH);const v=Math.round(max*r);
+      return `<line class="fl-chart-grid" x1="${padL}" y1="${y}" x2="${width-padR}" y2="${y}"></line><text class="fl-chart-text" x="${padL-9}" y="${y+4}" text-anchor="end">${v.toLocaleString('ar-SA')}</text>`;
+    }).join('');
+    const labelIndexes=[...new Set([0,Math.floor((data.length-1)*.25),Math.floor((data.length-1)*.5),Math.floor((data.length-1)*.75),data.length-1])];
+    const xLabels=labelIndexes.map(i=>{
+      const p=pts[i];let label=data[i].day;
+      try{label=new Intl.DateTimeFormat('ar-SA',{month:'short',day:'numeric'}).format(new Date(`${data[i].day}T00:00:00`));}catch(_){}
+      return `<text class="fl-chart-text" x="${p.x}" y="${height-16}" text-anchor="middle">${esc(label)}</text>`;
+    }).join('');
+    const dots=pts.map((p,i)=>{
+      if(data.length>45 && i%Math.ceil(data.length/30)!==0 && i!==data.length-1)return '';
+      return `<circle class="fl-chart-dot" cx="${p.x}" cy="${p.y}" r="3.5"><title>${esc(data[i].day)} · ${data[i].value.toLocaleString('ar-SA')}</title></circle>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(analyticsMetricLabels[metric]||'الإحصائيات')} حسب اليوم">${yTicks}<path class="fl-chart-area" d="${area}"></path><path class="fl-chart-line" d="${line}"></path>${dots}${xLabels}</svg>`;
+  }
+  let analyticsChartMetric='visits';
+  function updateAnalyticsChart(a){
+    const host=document.getElementById('flAnalyticsChart');
+    if(host)host.innerHTML=analyticsChartSvg(a?.timeseries,analyticsChartMetric);
+  }
   async function renderAnalytics(){
     layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>الزيارات والتفاعل مع المنتجات والأقسام والفروع.</p></div></div><div class="fl-cloud-card"><div class="fl-cloud-empty">جاري تحميل الإحصائيات...</div></div>`);
     const {data,error}=await db.rpc('get_site_analytics',{p_days:analyticsPeriod});
     if(view!=='analytics')return;
     if(error){
-      layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>الزيارات والتفاعل مع الموقع.</p></div></div><div class="fl-cloud-note bad">تعذر تحميل الإحصائيات. شغّل ملف <b>ANALYTICS_SETUP.sql</b> في Supabase مرة واحدة ثم أعد المحاولة.<br><small>${esc(error.message||'')}</small></div>`);
+      layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>الزيارات والتفاعل مع الموقع.</p></div></div><div class="fl-cloud-note bad">تعذر تحميل الإحصائيات. شغّل ملف <b>ANALYTICS_V5_UPGRADE.sql</b> في Supabase مرة واحدة ثم أعد المحاولة.<br><small>${esc(error.message||'')}</small></div>`);
       return;
     }
     const a=data||{};
-    layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>${esc(analyticsPeriodLabel(analyticsPeriod))} · الأرقام تتحدث تلقائيًا مع استخدام الزوار للموقع.</p></div></div>
+    const uniqueLabel=a.unique_visitors_is_approx?'زوار فريدون تقريبيًا*':'زوار فريدون';
+    const allTimeChartNote=analyticsPeriod===0?' · الرسم يعرض آخر 90 يومًا للحفاظ على الوضوح':'';
+    layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>${esc(analyticsPeriodLabel(analyticsPeriod))}${allTimeChartNote} · البيانات تتحدث تلقائيًا.</p></div></div>
       <div class="fl-analytics-toolbar"><select id="flAnalyticsPeriod" aria-label="الفترة"><option value="1" ${analyticsPeriod===1?'selected':''}>اليوم</option><option value="7" ${analyticsPeriod===7?'selected':''}>7 أيام</option><option value="30" ${analyticsPeriod===30?'selected':''}>30 يومًا</option><option value="90" ${analyticsPeriod===90?'selected':''}>90 يومًا</option><option value="0" ${analyticsPeriod===0?'selected':''}>كل الوقت</option></select><button class="fl-cloud-btn" id="flAnalyticsRefresh" type="button">تحديث</button></div>
       <div class="fl-analytics-grid">
         <div class="fl-analytics-card"><strong>${Number(a.total_visits||0).toLocaleString('ar-SA')}</strong><span>زيارات الموقع</span></div>
-        <div class="fl-analytics-card"><strong>${Number(a.unique_visitors||0).toLocaleString('ar-SA')}</strong><span>زوار تقريبيون فريدون</span></div>
+        <div class="fl-analytics-card"><strong>${Number(a.unique_visitors||0).toLocaleString('ar-SA')}</strong><span>${uniqueLabel}</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.products_open||0).toLocaleString('ar-SA')}</strong><span>فتح المنتجات</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.catalog_downloads||0).toLocaleString('ar-SA')}</strong><span>تحميل الكتالوج</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.whatsapp_clicks||0).toLocaleString('ar-SA')}</strong><span>ضغطات واتساب</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.phone_clicks||0).toLocaleString('ar-SA')}</strong><span>ضغطات اتصال</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.location_clicks||0).toLocaleString('ar-SA')}</strong><span>زيارات الفروع</span></div>
         <div class="fl-analytics-card"><strong>${Number(a.lead_submissions||0).toLocaleString('ar-SA')}</strong><span>بيانات عملاء مسجلة</span></div>
+        <div class="fl-analytics-card"><strong>${Number(a.saved_contacts||0).toLocaleString('ar-SA')}</strong><span>حفظ جهة الاتصال</span></div>
+      </div>
+      <div class="fl-analytics-chart-card">
+        <div class="fl-analytics-chart-head"><div><h3>النشاط اليومي</h3><p>منحنى زمني حقيقي مبني على أحداث الموقع.</p></div><select id="flAnalyticsMetric" aria-label="المؤشر"><option value="visits" ${analyticsChartMetric==='visits'?'selected':''}>الزيارات</option><option value="products_open" ${analyticsChartMetric==='products_open'?'selected':''}>فتح المنتجات</option><option value="catalog_downloads" ${analyticsChartMetric==='catalog_downloads'?'selected':''}>تحميل الكتالوج</option><option value="lead_submissions" ${analyticsChartMetric==='lead_submissions'?'selected':''}>بيانات العملاء</option></select></div>
+        <div class="fl-analytics-chart-wrap" id="flAnalyticsChart">${analyticsChartSvg(a.timeseries,analyticsChartMetric)}</div>
       </div>
       <div class="fl-analytics-columns">
         <div class="fl-cloud-card"><div class="fl-cloud-head"><div><h2 style="font-size:17px">الأقسام الأكثر ضغطًا</h2><p>عدد مرات اختيار كل قسم من كتالوج المنتجات.</p></div></div>${analyticsRows(a.categories,'لم يتم الضغط على أي قسم بعد.')}</div>
-        <div class="fl-cloud-card"><div class="fl-cloud-head"><div><h2 style="font-size:17px">الفروع والمواقع</h2><p>مثل الملز والفيصلية، كل فرع يظهر منفصلًا.</p></div></div>${analyticsRows(a.locations,'لم تتم زيارة أي فرع بعد.')}</div>
+        <div class="fl-cloud-card"><div class="fl-cloud-head"><div><h2 style="font-size:17px">الفروع والمواقع</h2><p>الملز والفيصلية وأي فرع جديد يظهر منفصلًا.</p></div></div>${analyticsRows(a.locations,'لم تتم زيارة أي فرع بعد.')}</div>
       </div>
-      <div class="fl-cloud-note">الزائر الفريد رقم تقريبي مبني على متصفح/جهاز الزائر بدون حفظ اسمه أو رقم جواله ضمن سجل الإحصائيات. تغيير الجهاز أو حذف بيانات المتصفح قد يُحسب كزائر جديد.</div>`);
+      <div class="fl-cloud-note">يتم الاحتفاظ بالأحداث الخام لمدة ${Number(a.raw_retention_days||180)} يومًا، ثم تُحفظ كإحصائيات يومية مجمعة تلقائيًا لتقليل حجم قاعدة البيانات. ${a.unique_visitors_is_approx?'*عند شمول بيانات مؤرشفة يكون عدد الزوار الفريدين تقديريًا لأن نفس الزائر قد يظهر في أكثر من يوم.':'عدد الزوار الفريدين محسوب من معرف متصفح مجهول ولا يتضمن الاسم أو رقم الجوال.'}</div>`);
     document.getElementById('flAnalyticsPeriod')?.addEventListener('change',e=>{analyticsPeriod=Number(e.target.value)||0;renderAnalytics();});
     document.getElementById('flAnalyticsRefresh')?.addEventListener('click',renderAnalytics);
+    document.getElementById('flAnalyticsMetric')?.addEventListener('change',e=>{analyticsChartMetric=e.target.value;updateAnalyticsChart(a);});
   }
+
 
   function renderProfile(){
     layout(`<div class="fl-cloud-head"><div><h2>البيانات الشخصية</h2><p>كل الحقول اختيارية. إذا تركت الحقل فارغًا فلن يظهر في الموقع.</p></div></div>
