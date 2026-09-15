@@ -321,6 +321,23 @@
     .location-choice-item small{display:block;margin-top:3px;color:#8b8379;font-size:11px;word-break:break-word}
     .location-choice-item .arrow{width:18px;height:18px;stroke:#aaa39b;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     @media(max-width:420px){.location-choice-modal{padding:10px}.location-choice-sheet{border-radius:22px}}
+
+    .export-choice-modal{position:fixed;inset:0;z-index:120500;background:rgba(15,19,27,.66);display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}
+    .export-choice-modal.open{display:flex}
+    body.export-choice-open{overflow:hidden}
+    .export-choice-sheet{width:min(460px,100%);background:#fff;border-radius:24px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,.22)}
+    .export-choice-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .export-choice-head h3{margin:0;font-size:20px}.export-choice-head p{margin:6px 0 0;color:#6d6d6d;font-size:13px;line-height:1.6}
+    .export-choice-close{width:42px;height:42px;border:0;border-radius:14px;background:#f2f4f7;font-size:26px;cursor:pointer;color:#333}
+    .export-choice-actions{display:grid;grid-template-columns:1fr;gap:12px}
+    .export-choice-action{width:100%;border:1px solid #eadfcf;background:#fffaf2;border-radius:18px;padding:15px 14px;display:grid;grid-template-columns:48px 1fr;grid-template-areas:"icon title" "icon note";column-gap:12px;row-gap:4px;align-items:center;text-align:right;cursor:pointer;font:inherit;color:#222}
+    .export-choice-action svg{grid-area:icon;width:28px;height:28px;justify-self:center;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:#b97200}
+    .export-choice-action span{grid-area:title;font-weight:900;font-size:15px}
+    .export-choice-action small{grid-area:note;color:#6d6d6d;font-size:12px;line-height:1.6}
+    .export-choice-action.jpg{background:#f8fbff;border-color:#dce8f7}.export-choice-action.jpg svg{color:#175ea8}
+    .export-choice-action:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(0,0,0,.07)}
+    .export-choice-action:focus-visible,.export-choice-close:focus-visible{outline:3px solid rgba(255,159,10,.28);outline-offset:2px}
+    @media(max-width:420px){.export-choice-modal{padding:10px}.export-choice-sheet{border-radius:22px;padding:15px}.export-choice-action{padding:14px 12px}}
     .info-icon{
       width:44px;height:44px;
       border-radius:14px;

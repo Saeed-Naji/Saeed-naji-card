@@ -1168,7 +1168,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     });
   }
 
-  async function createAdminDatasheetPdf(event){
+  async function createAdminDatasheetExport(event){
     event.preventDefault();
     const button=document.getElementById('flDatasheetCreate');
     const imageInput=document.getElementById('flDatasheetImage');
@@ -1194,26 +1194,29 @@ window.FLOWER_LIGHT_SUPABASE = {
         await document.fonts?.load('700 20px Tajawal');
       }catch(_){}
       const item={name,model,caption,specifications,image,image_path:'',gallery:[{image,image_path:'',is_primary:true,sort_order:0}]};
+      const choice=await (renderer.askExportChoice?renderer.askExportChoice({title:'تحميل الداتا شيت',subtitle:'اختر تنزيل الداتا شيت كملف PDF أو صورة JPG عالية الدقة.',pdfLabel:'تحميل PDF',jpgLabel:'تحميل JPG'}):Promise.resolve('pdf'));
+      if(!choice){button.disabled=false;button.textContent='صمّم وتحميل';return;}
+      const exportScale=choice==='jpg'?(renderer.scales?.jpg||3):(renderer.scales?.pdf||2);
       const page=renderer.createSinglePage
-        ? await renderer.createSinglePage(item,image,0,1)
-        : await renderer.createPage(item,{images:[{image,image_path:''}],singleMode:true,currentIndex:0,totalImages:1});
+        ? await renderer.createSinglePage(item,image,0,1,{scale:exportScale})
+        : await renderer.createPage(item,{images:[{image,image_path:''}],singleMode:true,currentIndex:0,totalImages:1,scale:exportScale});
       const {canvas,failedImages}=page;
-      const JsPdf=await renderer.loadJsPdf();
-      const pdf=new JsPdf({orientation:'portrait',unit:'mm',format:'a4',compress:true});
-      pdf.addImage(canvas.toDataURL('image/jpeg',0.86),'JPEG',0,0,210,297,undefined,'FAST');
-      const blob=pdf.output('blob');
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;
-      a.download=`${renderer.safeFilePart?.(model||name)||'product'}-datasheet.pdf`;
-      document.body.appendChild(a);a.click();a.remove();
-      window.setTimeout(()=>URL.revokeObjectURL(url),5000);
+      const fileBase=`${renderer.safeFilePart?.(model||name)||'product'}-datasheet`;
+      if(choice==='jpg'){
+        await renderer.downloadCanvasAsJpg(canvas,`${fileBase}.jpg`,renderer.qualities?.jpg||0.94);
+      }else{
+        const JsPdf=await renderer.loadJsPdf();
+        const pdf=new JsPdf({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+        pdf.addImage(canvas.toDataURL('image/jpeg',renderer.qualities?.pdf||0.94),'JPEG',0,0,210,297,undefined,'FAST');
+        const blob=pdf.output('blob');
+        renderer.triggerBlobDownload(blob,`${fileBase}.pdf`);
+      }
       notify(failedImages?'تم إنشاء الداتا شيت، لكن تعذر إدراج الصورة.':'تم تصميم وتحميل الداتا شيت بنفس القالب المعتمد');
     }catch(error){
       console.warn('[Admin datasheet] generation failed',error);
       notify('تعذر تصميم الداتا شيت: '+(error?.message||error));
     }finally{
-      button.disabled=false;button.textContent='صمّم وتحميل PDF';
+      button.disabled=false;button.textContent='صمّم وتحميل';
     }
   }
 
@@ -1290,7 +1293,7 @@ window.FLOWER_LIGHT_SUPABASE = {
       </form>
       <div class="fl-cloud-note">يمكن إضافة حتى 15 معلومة. مثال: القدرة (W)، اللومن (lm)، المقاس، اللون، الضمان.</div>
     </div>`:'';
-    layout(`<div class="fl-cloud-head"><div><h2>صمّم داتا شيت</h2><p>ارفع صورة المنتج وأدخل الاسم والكود والقيم؛ ثم اضغط «صمّم» لتحميل PDF بنفس قالب الداتا شيت المعتمد.</p></div></div>
+    layout(`<div class="fl-cloud-head"><div><h2>صمّم داتا شيت</h2><p>ارفع صورة المنتج وأدخل الاسم والكود والقيم؛ ثم اضغط «صمّم» واختر التحميل PDF أو JPG بنفس قالب الداتا شيت المعتمد.</p></div></div>
       ${ownerSettings}
       <div class="fl-cloud-card fl-datasheet-designer-card">
         <form id="flDatasheetDesignerForm">
@@ -1302,7 +1305,7 @@ window.FLOWER_LIGHT_SUPABASE = {
             <div class="fl-datasheet-section-title full"><strong>المعلومات الفنية</strong><small>${isPrimaryAdmin?'هذه نفس الحقول التي حددتها بالأعلى.':'الأسماء ثابتة من Admin 1 — أدخل القيم فقط.'}</small></div>
             ${datasheetValueFieldsHtml(fields)}
           </div>
-          <div class="fl-cloud-dialog-actions"><button class="fl-cloud-btn primary fl-datasheet-create" id="flDatasheetCreate" type="submit">صمّم وتحميل PDF</button></div>
+          <div class="fl-cloud-dialog-actions"><button class="fl-cloud-btn primary fl-datasheet-create" id="flDatasheetCreate" type="submit">صمّم وتحميل</button></div>
         </form>
       </div>
       <div class="fl-cloud-note ok">القالب المستخدم هنا هو نفس قالب «تحميل الصورة مع المعلومات الفنية» الموجود في المنتجات، بما فيه الرأس والتذييل وجدول المواصفات والضمان.</div>`);

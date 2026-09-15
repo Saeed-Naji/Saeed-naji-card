@@ -34,11 +34,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=16" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=16" />
   <link rel="shortcut icon" href="favicon.ico?v=16" />
-  <meta name="generator" content="Flower Light V32 · Admin datasheet designer" />
+  <meta name="generator" content="Flower Light V33 · Export chooser + high-res downloads" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=32">
+  <link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
   <main class="page">
@@ -139,6 +139,32 @@
     </section>
   </div>
 
+
+
+  <div class="export-choice-modal" id="exportChoiceModal" aria-hidden="true">
+    <section class="export-choice-sheet" role="dialog" aria-modal="true" aria-labelledby="exportChoiceTitle">
+      <div class="export-choice-head">
+        <div>
+          <h3 id="exportChoiceTitle">اختر نوع الملف</h3>
+          <p id="exportChoiceSubtitle">اختر الصيغة المناسبة للتحميل.</p>
+        </div>
+        <button class="export-choice-close" id="closeExportChoice" type="button" aria-label="إغلاق">×</button>
+      </div>
+      <div class="export-choice-actions">
+        <button class="export-choice-action" id="exportChoicePdf" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v6h6"></path><path d="M10 14h4M10 18h4"></path></svg>
+          <span>تحميل PDF</span>
+          <small>ملف مناسب للطباعة والمشاركة الرسمية</small>
+        </button>
+        <button class="export-choice-action jpg" id="exportChoiceJpg" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 15l2.5-3 2 2 2.5-3 3 4"></path><circle cx="9" cy="9" r="1.5"></circle></svg>
+          <span>تحميل JPG عالي الدقة</span>
+          <small>صورة مناسبة للمعرض والمشاركة السريعة</small>
+        </button>
+      </div>
+    </section>
+  </div>
+
   <div class="catalog-modal" id="catalogModal" aria-hidden="true">
     <section class="catalog-sheet" role="dialog" aria-modal="true" aria-labelledby="catalogTitle">
       <header class="catalog-header">
@@ -160,7 +186,7 @@
           </button>
           <button class="catalog-download" id="catalogDownloadPdf" type="button" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
-            <span id="catalogDownloadPdfLabel">تحميل الكتالوج PDF</span>
+            <span id="catalogDownloadPdfLabel">تحميل الكتالوج</span>
           </button>
         </div>
       </div>
@@ -276,7 +302,7 @@
         </button>
         <button class="image-lightbox-download-pdf" id="imageLightboxDownloadPdf" type="button" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
-          <span>تحميل هذه الصورة PDF</span>
+          <span>تحميل هذه الصورة</span>
         </button>
         <button class="image-lightbox-share" id="imageLightboxShare" type="button" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.9 7.5-4.5M8.2 13.1l7.5 4.5"></path></svg>
@@ -295,7 +321,7 @@
   
 
 
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 
 
 <!-- ===== Site Cloud Sync + Admin · Customer Leads V3 ===== -->
@@ -333,7 +359,7 @@
 <script>
 (() => {
   const script = document.createElement('script');
-  script.src = 'admin.js?v=32';
+  script.src = 'admin.js?v=33';
   script.async = false;
   document.body.appendChild(script);
 })();

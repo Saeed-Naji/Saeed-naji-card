@@ -473,9 +473,18 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const button = document.createElement('button');
     button.className = 'product-download-pdf-button';
     button.type = 'button';
-    button.setAttribute('aria-label', `تحميل ${productDisplayName(item)} وجميع صوره بصيغة PDF`);
-    button.innerHTML = `${productPdfIconSvg()}<span>تحميل PDF</span>`;
-    button.addEventListener('click', () => downloadProductOverviewPdf(item, button));
+    button.setAttribute('aria-label', `تحميل ${productDisplayName(item)} كملف PDF أو صورة JPG عالية الدقة`);
+    button.innerHTML = `${productPdfIconSvg()}<span>تحميل</span>`;
+    button.addEventListener('click', async () => {
+      const choice = await askExportChoice({
+        title: 'تحميل المنتج',
+        subtitle: 'اختر تنزيل المنتج كملف PDF أو كصورة JPG عالية الدقة.',
+        pdfLabel: 'تحميل PDF',
+        jpgLabel: 'تحميل JPG'
+      });
+      if (choice === 'jpg') return downloadProductOverviewJpg(item, button);
+      if (choice === 'pdf') return downloadProductOverviewPdf(item, button);
+    });
     return button;
   }
 
@@ -1392,17 +1401,51 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     }
   }
 
-  async function createCatalogPdfPage(section, item, pageNumber, totalPages) {
+  const BASE_EXPORT_PAGE_WIDTH = 1000;
+  const BASE_EXPORT_PAGE_HEIGHT = 1414;
+  const PDF_EXPORT_SCALE = 2;
+  const JPG_EXPORT_SCALE = 3;
+  const PDF_IMAGE_QUALITY = 0.94;
+  const JPG_IMAGE_QUALITY = 0.94;
+
+  function createScaledExportCanvas(scale = 1) {
+    const safeScale = Math.max(1, Number(scale) || 1);
     const canvas = document.createElement('canvas');
-    canvas.width = 1000;
-    canvas.height = 1414;
+    canvas.width = Math.round(BASE_EXPORT_PAGE_WIDTH * safeScale);
+    canvas.height = Math.round(BASE_EXPORT_PAGE_HEIGHT * safeScale);
     const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.setTransform(safeScale, 0, 0, safeScale, 0, 0);
+    return { canvas, ctx, scale: safeScale };
+  }
+
+  function exportCanvasToBlob(canvas, type = 'image/jpeg', quality = 0.92) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('تعذر تحويل التصميم إلى ملف.'));
+      }, type, quality);
+    });
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  async function createCatalogPdfPage(section, item, pageNumber, totalPages, { scale = 1 } = {}) {
+    const { canvas, ctx } = createScaledExportCanvas(scale);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, BASE_EXPORT_PAGE_WIDTH, BASE_EXPORT_PAGE_HEIGHT);
 
     // Header
     ctx.fillStyle = '#ff9f0a';
-    ctx.fillRect(0, 0, canvas.width, 16);
+    ctx.fillRect(0, 0, BASE_EXPORT_PAGE_WIDTH, 16);
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
@@ -1436,7 +1479,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       ctx.fillStyle = '#8a8178';
       ctx.font = '600 28px Tajawal, Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('تعذر تحميل صورة هذا المنتج', canvas.width / 2, box.y + box.h / 2);
+      ctx.fillText('تعذر تحميل صورة هذا المنتج', BASE_EXPORT_PAGE_WIDTH / 2, box.y + box.h / 2);
       ctx.textAlign = 'right';
     }
 
@@ -1669,16 +1712,18 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     ];
   }
 
-  function drawCatalogTemplateBackground(ctx, canvas) {
+  function drawCatalogTemplateBackground(ctx) {
+    const pageW = BASE_EXPORT_PAGE_WIDTH;
+    const pageH = BASE_EXPORT_PAGE_HEIGHT;
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, pageW, pageH);
 
     ctx.save();
     ctx.fillStyle = '#f3f3f1';
     ctx.beginPath();
-    ctx.moveTo(canvas.width * 0.54, 0);
-    ctx.bezierCurveTo(canvas.width * 0.82, 0, canvas.width, 20, canvas.width, 150);
-    ctx.lineTo(canvas.width, 0);
+    ctx.moveTo(pageW * 0.54, 0);
+    ctx.bezierCurveTo(pageW * 0.82, 0, pageW, 20, pageW, 150);
+    ctx.lineTo(pageW, 0);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1698,11 +1743,11 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     ctx.save();
     ctx.fillStyle = '#ff9f0a';
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height - 58);
-    ctx.bezierCurveTo(145, canvas.height - 70, 205, canvas.height - 6, 356, canvas.height - 18);
-    ctx.bezierCurveTo(575, canvas.height - 34, 670, canvas.height - 110, 1000, canvas.height - 30);
-    ctx.lineTo(1000, canvas.height);
-    ctx.lineTo(0, canvas.height);
+    ctx.moveTo(0, pageH - 58);
+    ctx.bezierCurveTo(145, pageH - 70, 205, pageH - 6, 356, pageH - 18);
+    ctx.bezierCurveTo(575, pageH - 34, 670, pageH - 110, 1000, pageH - 30);
+    ctx.lineTo(1000, pageH);
+    ctx.lineTo(0, pageH);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1710,9 +1755,9 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     ctx.save();
     ctx.fillStyle = '#f2f2f2';
     ctx.beginPath();
-    ctx.moveTo(665, canvas.height);
-    ctx.quadraticCurveTo(820, canvas.height - 112, 1000, canvas.height - 18);
-    ctx.lineTo(1000, canvas.height);
+    ctx.moveTo(665, pageH);
+    ctx.quadraticCurveTo(820, pageH - 112, 1000, pageH - 18);
+    ctx.lineTo(1000, pageH);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1942,13 +1987,10 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     return metrics.totalHeight;
   }
 
-  async function createBrandedProductPdfPage(item, { images = [], singleMode = false, currentIndex = 0, totalImages = 1 } = {}) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1000;
-    canvas.height = 1414;
-    const ctx = canvas.getContext('2d', { alpha: false });
+  async function createBrandedProductPdfPage(item, { images = [], singleMode = false, currentIndex = 0, totalImages = 1, scale = 1 } = {}) {
+    const { canvas, ctx } = createScaledExportCanvas(scale);
 
-    drawCatalogTemplateBackground(ctx, canvas);
+    drawCatalogTemplateBackground(ctx);
     await drawCatalogPageHeader(ctx, item);
 
     const rows = buildPdfSpecRows(item);
@@ -2006,9 +2048,86 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     return { canvas, failedImages, imageCount: layoutBoxes.length };
   }
 
-  async function createProductOverviewPdfPage(item) {
+  async function createProductOverviewPdfPage(item, { scale = 1 } = {}) {
     const gallery = normalizedProductGallery(item).slice(0, 4);
-    return createBrandedProductPdfPage(item, { images: gallery, singleMode: false });
+    return createBrandedProductPdfPage(item, { images: gallery, singleMode: false, scale });
+  }
+
+
+  const exportChoiceModal = $('#exportChoiceModal');
+  const exportChoiceTitle = $('#exportChoiceTitle');
+  const exportChoiceSubtitle = $('#exportChoiceSubtitle');
+  const exportChoicePdf = $('#exportChoicePdf');
+  const exportChoiceJpg = $('#exportChoiceJpg');
+  const exportChoiceClose = $('#closeExportChoice');
+  let exportChoiceResolver = null;
+
+  function closeExportChoice(choice = null) {
+    if (!exportChoiceModal) return;
+    exportChoiceModal.classList.remove('open');
+    exportChoiceModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('export-choice-open');
+    const resolver = exportChoiceResolver;
+    exportChoiceResolver = null;
+    if (resolver) resolver(choice);
+  }
+
+  function askExportChoice({ title = 'اختر نوع الملف', subtitle = '', pdfLabel = 'تحميل PDF', jpgLabel = 'تحميل JPG عالي الدقة' } = {}) {
+    if (!exportChoiceModal || !exportChoicePdf || !exportChoiceJpg) return Promise.resolve('pdf');
+    exportChoiceTitle.textContent = title;
+    exportChoiceSubtitle.textContent = subtitle;
+    exportChoicePdf.querySelector('span').textContent = pdfLabel;
+    exportChoiceJpg.querySelector('span').textContent = jpgLabel;
+    exportChoiceModal.classList.add('open');
+    exportChoiceModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('export-choice-open');
+    return new Promise(resolve => {
+      exportChoiceResolver = resolve;
+      window.requestAnimationFrame(() => exportChoicePdf.focus());
+    });
+  }
+
+  exportChoicePdf?.addEventListener('click', () => closeExportChoice('pdf'));
+  exportChoiceJpg?.addEventListener('click', () => closeExportChoice('jpg'));
+  exportChoiceClose?.addEventListener('click', () => closeExportChoice(null));
+  exportChoiceModal?.addEventListener('click', event => {
+    if (event.target === exportChoiceModal) closeExportChoice(null);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && exportChoiceModal?.classList.contains('open')) closeExportChoice(null);
+  });
+
+  async function downloadCanvasAsJpg(canvas, filename, quality = JPG_IMAGE_QUALITY) {
+    const blob = await exportCanvasToBlob(canvas, 'image/jpeg', quality);
+    triggerBlobDownload(blob, filename);
+  }
+
+  async function downloadProductOverviewJpg(item, button) {
+    const busyKey = String(item?.id || item?.model || productDisplayName(item));
+    if (productOverviewPdfBusy.has(`jpg:${busyKey}`)) return;
+    productOverviewPdfBusy.add(`jpg:${busyKey}`);
+    const label = button?.querySelector('span');
+    const originalLabel = label?.textContent || 'تحميل';
+    if (button) button.disabled = true;
+    if (label) label.textContent = 'جاري تجهيز JPG…';
+    try {
+      try {
+        await document.fonts?.load('800 40px Tajawal');
+        await document.fonts?.load('700 20px Tajawal');
+      } catch (_) {}
+      const { canvas, failedImages, imageCount } = await createProductOverviewPdfPage(item, { scale: JPG_EXPORT_SCALE });
+      const fileBase = safePdfFilePart(item?.model || productDisplayName(item));
+      await downloadCanvasAsJpg(canvas, `${fileBase}-product.jpg`);
+      trackEvent('catalog_download', analyticsProductParams(item, { label: 'product_jpg', images_count: imageCount, failed_images: failedImages }));
+      showPublicToast(failedImages ? `تم تحميل JPG عالي الدقة، وتعذر إدراج ${failedImages} صورة.` : 'تم تحميل صورة JPG عالية الدقة.', 4000);
+    } catch (error) {
+      console.warn('[Product JPG] generation failed', error);
+      showPublicToast('تعذر تجهيز صورة JPG للمنتج. أعد المحاولة بعد التأكد من اتصال الإنترنت.', 4500);
+    } finally {
+      productOverviewPdfBusy.delete(`jpg:${busyKey}`);
+      if (button) button.disabled = false;
+      if (label) label.textContent = originalLabel;
+    }
   }
 
   const productOverviewPdfBusy = new Set();
@@ -2017,7 +2136,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     if (productOverviewPdfBusy.has(busyKey)) return;
     productOverviewPdfBusy.add(busyKey);
     const label = button?.querySelector('span');
-    const originalLabel = label?.textContent || 'تحميل PDF';
+    const originalLabel = label?.textContent || 'تحميل';
     if (button) button.disabled = true;
     if (label) label.textContent = 'جاري تجهيز PDF…';
     try {
@@ -2026,9 +2145,9 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
         await document.fonts?.load('800 40px Tajawal');
         await document.fonts?.load('700 20px Tajawal');
       } catch (_) {}
-      const { canvas, failedImages, imageCount } = await createProductOverviewPdfPage(item);
+      const { canvas, failedImages, imageCount } = await createProductOverviewPdfPage(item, { scale: PDF_EXPORT_SCALE });
       const pdf = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      pdf.addImage(canvas.toDataURL('image/jpeg', PDF_IMAGE_QUALITY), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2051,12 +2170,13 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     }
   }
 
-  async function createSingleProductImagePdfPage(item, imageSrc, imageIndex = 0, totalImages = 1) {
+  async function createSingleProductImagePdfPage(item, imageSrc, imageIndex = 0, totalImages = 1, { scale = 1 } = {}) {
     return createBrandedProductPdfPage(item, {
       images: [{ image: imageSrc, image_path: '' }],
       singleMode: true,
       currentIndex: imageIndex,
-      totalImages
+      totalImages,
+      scale
     });
   }
 
@@ -2071,6 +2191,39 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   }
 
   let singleImagePdfBusy = false;
+  let singleImageJpgBusy = false;
+  async function downloadCurrentProductImageJpg() {
+    if (singleImageJpgBusy) return;
+    const item = currentLightboxProduct();
+    const gallery = currentLightboxGallery();
+    const galleryImage = gallery[lightboxImageIndex];
+    if (!item || !galleryImage?.image) return;
+
+    singleImageJpgBusy = true;
+    const button = imageLightboxDownloadPdf;
+    const label = button?.querySelector('span');
+    const originalLabel = label?.textContent || 'تحميل';
+    if (button) button.disabled = true;
+    if (label) label.textContent = 'جاري تجهيز JPG…';
+    try {
+      try {
+        await document.fonts?.load('800 38px Tajawal');
+        await document.fonts?.load('600 22px Tajawal');
+      } catch (_) {}
+      const { canvas, imageFailed } = await createSingleProductImagePdfPage(item, galleryImage.image, lightboxImageIndex, gallery.length, { scale: JPG_EXPORT_SCALE });
+      const fileBase = safePdfFilePart(item?.model || productDisplayName(item));
+      await downloadCanvasAsJpg(canvas, `${fileBase}-image-${lightboxImageIndex + 1}.jpg`);
+      showPublicToast(imageFailed ? 'تم تحميل JPG لكن تعذر إدراج الصورة الأصلية.' : `تم تحميل JPG عالي الدقة للصورة ${lightboxImageIndex + 1}.`, 3600);
+    } catch (error) {
+      console.warn('[Product image JPG] generation failed', error);
+      showPublicToast('تعذر تجهيز صورة JPG. أعد المحاولة بعد التأكد من اتصال الإنترنت.', 4500);
+    } finally {
+      singleImageJpgBusy = false;
+      if (button) button.disabled = false;
+      if (label) label.textContent = originalLabel;
+    }
+  }
+
   async function downloadCurrentProductImagePdf() {
     if (singleImagePdfBusy) return;
     const item = currentLightboxProduct();
@@ -2081,7 +2234,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     singleImagePdfBusy = true;
     const button = imageLightboxDownloadPdf;
     const label = button?.querySelector('span');
-    const originalLabel = label?.textContent || 'تحميل هذه الصورة PDF';
+    const originalLabel = label?.textContent || 'تحميل';
     if (button) button.disabled = true;
     if (label) label.textContent = 'جاري تجهيز PDF…';
     try {
@@ -2090,9 +2243,9 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
         await document.fonts?.load('800 38px Tajawal');
         await document.fonts?.load('600 22px Tajawal');
       } catch (_) {}
-      const { canvas, imageFailed } = await createSingleProductImagePdfPage(item, galleryImage.image, lightboxImageIndex, gallery.length);
+      const { canvas, imageFailed } = await createSingleProductImagePdfPage(item, galleryImage.image, lightboxImageIndex, gallery.length, { scale: PDF_EXPORT_SCALE });
       const pdf = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.86), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      pdf.addImage(canvas.toDataURL('image/jpeg', PDF_IMAGE_QUALITY), 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2160,8 +2313,51 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     createPage: createBrandedProductPdfPage,
     createSinglePage: createSingleProductImagePdfPage,
     loadJsPdf: loadJsPdfOnDemand,
-    safeFilePart: safePdfFilePart
+    safeFilePart: safePdfFilePart,
+    askExportChoice,
+    downloadCanvasAsJpg,
+    exportCanvasToBlob,
+    triggerBlobDownload,
+    scales: Object.freeze({ pdf: PDF_EXPORT_SCALE, jpg: JPG_EXPORT_SCALE }),
+    qualities: Object.freeze({ pdf: PDF_IMAGE_QUALITY, jpg: JPG_IMAGE_QUALITY })
   });
+
+  async function downloadCatalogJpg() {
+    if (catalogPdfBusy) return;
+    const entries = catalogPdfEntries();
+    if (!entries.length) {
+      showPublicToast('لا توجد منتجات ظاهرة لإضافتها إلى الكتالوج.');
+      return;
+    }
+    catalogPdfBusy = true;
+    if (catalogDownloadPdf) catalogDownloadPdf.disabled = true;
+    const originalLabel = catalogDownloadPdfLabel?.textContent || 'تحميل الكتالوج';
+    let failedImages = 0;
+    try {
+      try {
+        await document.fonts?.load('800 42px Tajawal');
+        await document.fonts?.load('500 24px Tajawal');
+      } catch (_) {}
+      for (let index = 0; index < entries.length; index += 1) {
+        if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = `جاري تجهيز JPG ${index + 1}/${entries.length}`;
+        const { section, item } = entries[index];
+        const { canvas, imageFailed } = await createCatalogPdfPage(section, item, index + 1, entries.length, { scale: JPG_EXPORT_SCALE });
+        if (imageFailed) failedImages += 1;
+        const base = safePdfFilePart(item?.model || productDisplayName(item) || `catalog-${index + 1}`);
+        await downloadCanvasAsJpg(canvas, `${String(index + 1).padStart(2, '0')}-${base}.jpg`);
+        await new Promise(resolve => setTimeout(resolve, 160));
+      }
+      trackEvent('catalog_download', { label: 'كتالوج المنتجات JPG', products_count: entries.length, failed_images: failedImages });
+      showPublicToast(failedImages ? `تم تحميل صور JPG للكتالوج، وتعذر إدراج ${failedImages} صورة.` : `تم تحميل ${entries.length} صورة JPG للكتالوج.`, 4300);
+    } catch (error) {
+      console.warn('[Catalog JPG] generation failed', error);
+      showPublicToast('تعذر تجهيز صور JPG للكتالوج. أعد المحاولة بعد التأكد من اتصال الإنترنت.', 4500);
+    } finally {
+      catalogPdfBusy = false;
+      if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = originalLabel;
+      if (catalogDownloadPdf) catalogDownloadPdf.disabled = catalogPdfEntries().length === 0;
+    }
+  }
 
   async function downloadCatalogPdf() {
     if (catalogPdfBusy) return;
@@ -2172,7 +2368,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     }
     catalogPdfBusy = true;
     if (catalogDownloadPdf) catalogDownloadPdf.disabled = true;
-    const originalLabel = catalogDownloadPdfLabel?.textContent || 'تحميل الكتالوج PDF';
+    const originalLabel = catalogDownloadPdfLabel?.textContent || 'تحميل الكتالوج';
     let failedImages = 0;
     try {
       if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = 'جاري تحميل أداة PDF…';
@@ -2186,10 +2382,10 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       for (let index = 0; index < entries.length; index += 1) {
         if (catalogDownloadPdfLabel) catalogDownloadPdfLabel.textContent = `جاري التجهيز ${index + 1}/${entries.length}`;
         const { section, item } = entries[index];
-        const { canvas, imageFailed } = await createCatalogPdfPage(section, item, index + 1, entries.length);
+        const { canvas, imageFailed } = await createCatalogPdfPage(section, item, index + 1, entries.length, { scale: PDF_EXPORT_SCALE });
         if (imageFailed) failedImages += 1;
         if (index > 0) pdf.addPage('a4', 'portrait');
-        const pageImage = canvas.toDataURL('image/jpeg', 0.80);
+        const pageImage = canvas.toDataURL('image/jpeg', PDF_IMAGE_QUALITY);
         pdf.addImage(pageImage, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
         await new Promise(resolve => window.requestAnimationFrame(resolve));
       }
@@ -2215,7 +2411,18 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     }
   }
 
-  catalogDownloadPdf?.addEventListener('click', downloadCatalogPdf);
+  async function handleCatalogDownloadChoice() {
+    const choice = await askExportChoice({
+      title: 'تحميل الكتالوج',
+      subtitle: 'يمكنك تنزيل الكتالوج كملف PDF واحد، أو كصور JPG عالية الدقة لكل منتج على حدة.',
+      pdfLabel: 'تحميل الكتالوج PDF',
+      jpgLabel: 'تحميل الكتالوج JPG'
+    });
+    if (choice === 'jpg') return downloadCatalogJpg();
+    if (choice === 'pdf') return downloadCatalogPdf();
+  }
+
+  catalogDownloadPdf?.addEventListener('click', handleCatalogDownloadChoice);
 
   function renderProducts() {
     const data = window.FLOWER_LIGHT_PRODUCTS || {extraSections:[]};
@@ -2363,10 +2570,10 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       imageLightboxDownloadPdf.hidden = !isProduct;
       if (isProduct) {
         const downloadLabel = imageLightboxDownloadPdf.querySelector('span');
-        if (downloadLabel && !singleImagePdfBusy) downloadLabel.textContent = gallery.length > 1
-          ? `تحميل الصورة ${lightboxImageIndex + 1} PDF`
-          : 'تحميل هذه الصورة PDF';
-        imageLightboxDownloadPdf.setAttribute('aria-label', `تحميل الصورة ${lightboxImageIndex + 1} من ${gallery.length} بصيغة PDF مع المواصفات`);
+        if (downloadLabel && !singleImagePdfBusy && !singleImageJpgBusy) downloadLabel.textContent = gallery.length > 1
+          ? `تحميل الصورة ${lightboxImageIndex + 1}`
+          : 'تحميل هذه الصورة';
+        imageLightboxDownloadPdf.setAttribute('aria-label', `تحميل الصورة ${lightboxImageIndex + 1} من ${gallery.length} بصيغة PDF أو JPG مع المواصفات`);
       }
     }
     if (imageLightboxShare) {
@@ -2467,7 +2674,17 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     showLightboxState();
   });
 
-  imageLightboxDownloadPdf?.addEventListener('click', downloadCurrentProductImagePdf);
+  imageLightboxDownloadPdf?.addEventListener('click', async () => {
+    const gallery = currentLightboxGallery();
+    const choice = await askExportChoice({
+      title: 'تحميل الصورة الحالية',
+      subtitle: `اختر تنزيل الصورة الحالية من المنتج بصيغة PDF أو JPG عالية الدقة${gallery.length > 1 ? ` — الصورة ${lightboxImageIndex + 1} من ${gallery.length}` : ''}.`,
+      pdfLabel: 'تحميل PDF',
+      jpgLabel: 'تحميل JPG'
+    });
+    if (choice === 'jpg') return downloadCurrentProductImageJpg();
+    if (choice === 'pdf') return downloadCurrentProductImagePdf();
+  });
 
   imageLightboxShare?.addEventListener('click', async () => {
     const item = currentLightboxProduct();
