@@ -34,11 +34,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png?v=16" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=16" />
   <link rel="shortcut icon" href="favicon.ico?v=16" />
-  <meta name="generator" content="Flower Light V29 · Arabic header slogan removed" />
+  <meta name="generator" content="Flower Light V31 · Admin-only datasheet permission" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
   <main class="page">
@@ -295,7 +295,7 @@
   
 
 
-<script src="app.js?v=29"></script>
+<script src="app.js?v=31"></script>
 
 
 <!-- ===== Site Cloud Sync + Admin · Customer Leads V3 ===== -->
@@ -332,10 +332,8 @@
 
 <script>
 (() => {
-  const panel = new URLSearchParams(window.location.search).get('admin');
-  const isAdminPage = panel === '1' || panel === '2';
   const script = document.createElement('script');
-  script.src = isAdminPage ? 'admin.js?v=23' : 'supabase-public.js?v=20';
+  script.src = 'admin.js?v=31';
   script.async = false;
   document.body.appendChild(script);
 })();

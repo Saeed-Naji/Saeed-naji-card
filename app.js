@@ -63,6 +63,12 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   const $ = (selector, scope = document) => scope.querySelector(selector);
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
 
+  function customerServiceEnabled(serviceKey) {
+    const profile = window.FLOWER_LIGHT_PROFILE || {};
+    if (serviceKey === 'quote_request') return profile.quote_service_visible !== false;
+    return false;
+  }
+
 
   function trackEvent(eventName, params = {}) {
     if (typeof window.flTrack === 'function') window.flTrack(eventName, params);
@@ -494,6 +500,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const button = document.createElement('button');
     button.className = 'product-quote-button';
     button.type = 'button';
+    button.hidden = !customerServiceEnabled('quote_request');
     button.dataset.quoteAdd = String(item?.id || '');
     button.setAttribute('aria-label', `أضف ${productDisplayName(item)} إلى طلب عرض السعر`);
     button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 9h8M8 13h5"></path><path d="M18 16v5M15.5 18.5h5"></path></svg><span>أضف لطلب السعر</span>`;
@@ -833,6 +840,20 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   const paperQuoteError = $('#paperQuoteError');
   const paperQuoteSubmit = $('#paperQuoteSubmit');
 
+  function applyCustomerServiceVisibility() {
+    const quoteVisible = customerServiceEnabled('quote_request');
+    document.documentElement.classList.toggle('quote-service-hidden', !quoteVisible);
+    if (openPaperQuoteButton) openPaperQuoteButton.hidden = !quoteVisible;
+    if (openQuoteCartButton) openQuoteCartButton.hidden = !quoteVisible;
+    $$('[data-quote-add]').forEach(button => { button.hidden = !quoteVisible; });
+    if (!quoteVisible) {
+      closeQuoteCart();
+      closePaperQuote();
+    }
+  }
+
+  window.flApplyServiceVisibility = applyCustomerServiceVisibility;
+
   function loadQuoteCart() {
     try {
       const parsed = JSON.parse(localStorage.getItem(QUOTE_CART_KEY) || '[]');
@@ -882,7 +903,10 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   }
 
   function updateQuoteButtons() {
+    const quoteVisible = customerServiceEnabled('quote_request');
     $$('[data-quote-add]').forEach(button => {
+      button.hidden = !quoteVisible;
+      if (!quoteVisible) return;
       const added = quoteHasProduct(button.dataset.quoteAdd);
       button.classList.toggle('added', added);
       const label = button.querySelector('span');
@@ -905,6 +929,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   }
 
   function addQuoteProduct(item) {
+    if (!customerServiceEnabled('quote_request')) return;
     if (!item?.id) return;
     const id = String(item.id);
     const existing = quoteCart.find(row => row.id === id);
@@ -1042,6 +1067,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   syncQuoteCompanyField('paperQuote');
 
   function openQuoteCart() {
+    if (!customerServiceEnabled('quote_request')) return;
     if (!quoteModal) return;
     quoteLastFocus = document.activeElement;
     fillQuoteCustomerFields('quoteCustomer');
@@ -1228,6 +1254,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   }
 
   function openPaperQuote() {
+    if (!customerServiceEnabled('quote_request')) return;
     if (!paperQuoteModal) return;
     paperQuoteLastFocus = document.activeElement;
     fillQuoteCustomerFields('paperQuote');
@@ -2184,6 +2211,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const data = window.FLOWER_LIGHT_PRODUCTS || {extraSections:[]};
     renderExtraSections(data);
     if (catalogDownloadPdf) catalogDownloadPdf.disabled = catalogPdfBusy || catalogPdfEntries().length === 0;
+    applyCustomerServiceVisibility();
     updateQuoteBadge();
     if (quoteModal?.classList.contains('open')) renderQuoteCart();
     scheduleDeepLinkResolution();
@@ -2311,8 +2339,9 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       }
     }
     if (imageLightboxQuoteAdd) {
-      imageLightboxQuoteAdd.hidden = !isProduct;
-      if (isProduct) {
+      const quoteVisible = customerServiceEnabled('quote_request');
+      imageLightboxQuoteAdd.hidden = !(isProduct && quoteVisible);
+      if (isProduct && quoteVisible) {
         imageLightboxQuoteAdd.dataset.quoteAdd = String(item.id || '');
         const added = quoteHasProduct(item.id);
         imageLightboxQuoteAdd.classList.toggle('added', added);

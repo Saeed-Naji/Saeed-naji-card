@@ -947,6 +947,11 @@
 .paper-quote-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#fff0cf;color:#8d5a00;flex:0 0 auto}
 .paper-quote-icon svg,.paper-quote-arrow{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .paper-quote-copy{display:grid;gap:2px;flex:1;text-align:right}.paper-quote-copy strong{font-size:13px}.paper-quote-copy small{font-size:10px;color:#8a7d69;line-height:1.45}.paper-quote-arrow{width:18px;height:18px;color:#9a8e7a;flex:0 0 auto}
+html.quote-service-hidden #openPaperQuote,
+html.quote-service-hidden #openQuoteCart,
+html.quote-service-hidden .product-quote-button,
+html.quote-service-hidden #imageLightboxQuoteAdd{display:none!important}
+html.quote-service-hidden .product-card-actions .product-share-button{grid-column:1/-1}
 
 .catalog-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .quote-cart-button{border:1px solid #f0c46d;border-radius:11px;background:#fff7e7;color:#825200;min-height:42px;padding:8px 10px;display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:11px;font-weight:900;cursor:pointer}
@@ -1432,4 +1437,29 @@ body.quote-open,body.paper-quote-open{overflow:hidden}
     line-height:1.25!important;
   }
   .product-card-actions svg{width:18px!important;height:18px!important}
+}
+
+/* Stage 30 — customer service visibility */
+.fl-service-list{display:grid;gap:12px}
+.fl-service-control{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:13px;padding:14px;border:1px solid #e3e8f0;border-radius:15px;background:#fbfcfe;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+.fl-service-control:hover{border-color:#efc678;background:#fffdf8;box-shadow:0 8px 22px rgba(41,35,25,.05)}
+.fl-service-control:has(input:focus-visible){outline:3px solid rgba(255,159,10,.24);outline-offset:2px}
+.fl-service-control-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:#fff1d6;color:#986000}
+.fl-service-control-icon svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fl-service-control-copy{min-width:0;display:grid;gap:4px}.fl-service-control-copy strong{font-size:16px;color:#202b3d}.fl-service-control-copy small{font-size:13px;line-height:1.65;color:#748095}
+.fl-service-control-action{display:grid;grid-template-columns:28px auto;align-items:center;gap:8px;min-width:91px}
+.fl-service-control-action input{position:absolute;opacity:0;pointer-events:none}
+.fl-service-checkbox{width:27px;height:27px;border:2px solid #c5ceda;border-radius:8px;display:grid;place-items:center;color:transparent;background:#fff;font-size:17px;font-weight:900;transition:.15s ease}
+.fl-service-control-action input:checked+.fl-service-checkbox{background:#18a957;border-color:#18a957;color:#fff}
+.fl-service-control-action em{font-style:normal;font-size:13px;font-weight:800;color:#778397}
+.fl-service-control-action input:checked~em{color:#168047}
+.fl-datasheet-admin-card{display:flex;align-items:center;gap:16px;min-height:120px;background:linear-gradient(135deg,#f7faff,#fffaf0)}
+.fl-datasheet-admin-card h3{margin:0 0 6px;color:#24344a;font-size:19px}.fl-datasheet-admin-card p{margin:0;color:#6f7d91;line-height:1.7}
+.fl-datasheet-admin-icon{width:68px;height:68px;flex:0 0 68px;border-radius:18px;display:grid;place-items:center;background:#e7f0fb;color:#315f93}
+.fl-datasheet-admin-icon svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:620px){
+  .fl-service-control{grid-template-columns:44px minmax(0,1fr);align-items:start;padding:12px;gap:10px}
+  .fl-service-control-icon{width:44px;height:44px;border-radius:12px}
+  .fl-service-control-action{grid-column:1/-1;justify-content:end;grid-template-columns:28px auto;padding-top:2px}
+  .fl-datasheet-admin-card{align-items:flex-start}.fl-datasheet-admin-icon{width:54px;height:54px;flex-basis:54px;border-radius:14px}.fl-datasheet-admin-icon svg{width:28px;height:28px}
 }

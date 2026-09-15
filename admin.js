@@ -1,4 +1,4 @@
-// Flower Light Supabase admin controller — Stage 23.
+// Flower Light Supabase public/admin controller — Stage 31.
 // ?admin=1 requires the Owner role; ?admin=2 requires the linked Sub-admin role.
 // Permissions are enforced in both this interface and Supabase RLS/RPC policies.
 
@@ -437,8 +437,13 @@ window.FLOWER_LIGHT_SUPABASE = {
     const kicker=document.getElementById('catalogKicker');
     if(kicker){kicker.textContent=brand||company;kicker.hidden=!(brand||company);}
     const note=document.getElementById('catalogNote');
-    if(note) note.textContent=(brand||company)?`استعرض أقسام ومنتجات ${brand||company}.`:'استعرض الأقسام والمنتجات.';
+    const quoteVisible=profile.quote_service_visible!==false;
+    if(note){
+      const catalogName=(brand||company)?`أقسام ومنتجات ${brand||company}`:'الأقسام والمنتجات';
+      note.textContent=quoteVisible?`استعرض ${catalogName} وأضف ما تريد إلى طلب عرض السعر.`:`استعرض ${catalogName}.`;
+    }
 
+    window.flApplyServiceVisibility?.();
     window.flRenderProducts?.();
   }
 
@@ -665,6 +670,8 @@ window.FLOWER_LIGHT_SUPABASE = {
   const adminViewItems = [
     ['analytics','الإحصائيات'],
     ['quotes','طلبات عروض الأسعار'],
+    ['services','خدمات العملاء'],
+    ['datasheet','صمّم داتا شيت'],
     ['sections','الأقسام'],
     ['products','المنتجات'],
     ['profile','البيانات الشخصية'],
@@ -672,6 +679,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     ['leads','جهات اتصال العملاء']
   ];
   const validPermissionKeys = new Set(adminViewItems.map(([key])=>key));
+  const delegatablePermissionKeys = new Set([...validPermissionKeys].filter(key=>!['sections','products'].includes(key)));
   let currentAdminRole='';
   let currentAdminEmail='';
   let currentAdminPermissions=new Set();
@@ -692,7 +700,7 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   function normalizePermissionList(value){
     const list=Array.isArray(value) ? value : (Array.isArray(value?.permissions) ? value.permissions : []);
-    return [...new Set(list.map(String).filter(key=>validPermissionKeys.has(key)))];
+    return [...new Set(list.map(String).filter(key=>delegatablePermissionKeys.has(key)))];
   }
 
   async function loadCurrentAdminAccess(){
@@ -755,7 +763,9 @@ window.FLOWER_LIGHT_SUPABASE = {
       needCatalog ? db.from('categories').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true}) : Promise.resolve({data:[],error:null}),
       needCatalog ? db.from('products').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true}) : Promise.resolve({data:[],error:null}),
       needCatalog ? db.from('product_images').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true}) : Promise.resolve({data:[],error:null}),
-      allowed.has('profile') ? db.from('site_profile').select('*').eq('id',1).maybeSingle() : Promise.resolve({data:{},error:null}),
+      allowed.has('profile')
+        ? db.from('site_profile').select('*').eq('id',1).maybeSingle()
+        : (allowed.has('services') ? db.rpc('get_quote_service_visibility_for_admin') : Promise.resolve({data:{},error:null})),
       allowed.has('contacts') ? db.from('contact_items').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true}) : Promise.resolve({data:[],error:null}),
       allowed.has('leads') ? db.from('customer_leads').select('*').order('created_at',{ascending:false}) : Promise.resolve({data:[],error:null}),
       allowed.has('quotes') ? db.from('quote_requests').select('*').order('created_at',{ascending:false}).limit(500) : Promise.resolve({data:[],error:null})
@@ -787,6 +797,8 @@ window.FLOWER_LIGHT_SUPABASE = {
     view=normalizeAdminView(view);
     if(view==='analytics') renderAnalytics();
     else if(view==='quotes') renderQuoteRequests();
+    else if(view==='services') renderServices();
+    else if(view==='datasheet') renderDatasheetDesigner();
     else if(view==='sections') renderSections();
     else if(view==='products') renderProducts();
     else if(view==='profile') renderProfile();
@@ -805,6 +817,8 @@ window.FLOWER_LIGHT_SUPABASE = {
     if(allowed.has('sections'))statCards.push([categories.length,'الأقسام']);
     if(allowed.has('products'))statCards.push([products.length,'إجمالي المنتجات'],[visible,'المنتجات الظاهرة']);
     if(allowed.has('quotes'))statCards.push([newQuotes,'طلبات سعر جديدة']);
+    if(allowed.has('services'))statCards.push([profile.quote_service_visible!==false?'✓':'—','طلب عرض السعر']);
+    if(allowed.has('datasheet'))statCards.push(['✓','صمّم داتا شيت']);
     if(allowed.has('profile'))statCards.push([profileReady?'✓':'—','بيانات البطاقة']);
     if(allowed.has('contacts'))statCards.push([contacts.length,'وسائل التواصل']);
     if(allowed.has('leads'))statCards.push([leads.length,'جهات اتصال العملاء']);
@@ -812,6 +826,8 @@ window.FLOWER_LIGHT_SUPABASE = {
     const quickButtons=[
       ['analytics','الإحصائيات','success'],
       ['quotes',`طلبات عروض الأسعار (${quoteRequests.length})`,'primary'],
+      ['services','خدمات العملاء',''],
+      ['datasheet','صمّم داتا شيت','success'],
       ['sections','الأقسام',''],
       ['products','المنتجات','primary'],
       ['profile','البيانات الشخصية',''],
@@ -827,8 +843,8 @@ window.FLOWER_LIGHT_SUPABASE = {
   }
 
   function renderPermissions(){
-    const rows=adminViewItems.map(([key,label])=>`<label class="fl-permission-row"><span class="fl-permission-copy"><strong>${esc(label)}</strong><small>السماح لـ admin=2 بفتح وإدارة هذا الجزء</small></span><input type="checkbox" name="admin2_permission" value="${key}" ${managedAdmin2Permissions.has(key)?'checked':''}><span class="fl-permission-check" aria-hidden="true">✓</span></label>`).join('');
-    layout(`<div class="fl-cloud-head"><div><h2>صلاحيات admin=2</h2><p>اربط حساب Supabase منفصلًا للمدير المساعد، ثم حدد الأجزاء التي يستطيع إدارتها. الرئيسية تبقى ظاهرة دائمًا.</p></div></div>
+    const rows=adminViewItems.filter(([key])=>delegatablePermissionKeys.has(key)).map(([key,label])=>`<label class="fl-permission-row"><span class="fl-permission-copy"><strong>${esc(label)}</strong><small>السماح لـ admin=2 بفتح وإدارة هذا الجزء</small></span><input type="checkbox" name="admin2_permission" value="${key}" ${managedAdmin2Permissions.has(key)?'checked':''}><span class="fl-permission-check" aria-hidden="true">✓</span></label>`).join('');
+    layout(`<div class="fl-cloud-head"><div><h2>صلاحيات admin=2</h2><p>اربط حساب Supabase منفصلًا للمدير المساعد، ثم حدد الأجزاء التي يستطيع إدارتها. الرئيسية تبقى ظاهرة دائمًا، بينما الأقسام والمنتجات للمدير الأساسي فقط.</p></div></div>
       <div class="fl-cloud-note ok">هذه صلاحيات حقيقية داخل قاعدة البيانات، وليست مجرد إخفاء للأزرار.</div>
       <form id="flPermissionsForm" class="fl-cloud-card fl-permissions-card">
         <div class="fl-cloud-field"><label for="flAdmin2Email">بريد مستخدم admin=2 في Supabase</label><input id="flAdmin2Email" type="email" autocomplete="off" required dir="ltr" value="${esc(managedAdmin2Email)}" placeholder="example@email.com"><small>يجب إنشاء هذا البريد أولًا من Supabase → Authentication → Users، ويجب أن يختلف عن حساب admin=1.</small></div>
@@ -1040,6 +1056,58 @@ window.FLOWER_LIGHT_SUPABASE = {
     document.getElementById('flAnalyticsMetric')?.addEventListener('change',e=>{analyticsChartMetric=e.target.value;updateAnalyticsChart(a);});
   }
 
+
+  function renderServices(){
+    const quoteVisible=profile.quote_service_visible!==false;
+    layout(`<div class="fl-cloud-head"><div><h2>خدمات العملاء</h2><p>ضع ✓ أمام الخدمة التي تريد إظهارها للعميل، وأزل العلامة لإخفائها.</p></div></div>
+      <div class="fl-cloud-card">
+        <form id="flServicesForm">
+          <div class="fl-service-list">
+            <label class="fl-service-control">
+              <span class="fl-service-control-icon quote" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="M8 9h8M8 13h5"></path></svg></span>
+              <span class="fl-service-control-copy"><strong>طلب عرض سعر</strong><small>يتحكم في زر طلب السعر الرئيسي، وسلة الطلب، وأزرار الإضافة داخل المنتجات.</small></span>
+              <span class="fl-service-control-action"><input id="flServiceQuote" type="checkbox" ${quoteVisible?'checked':''}><span class="fl-service-checkbox">✓</span><em data-service-state="quote">${quoteVisible?'ظاهر':'مخفي'}</em></span>
+            </label>
+          </div>
+          <div class="fl-cloud-dialog-actions"><button class="fl-cloud-btn primary" id="flServicesSave" type="submit">حفظ ظهور الخدمة</button></div>
+        </form>
+      </div>
+      <div class="fl-cloud-note">«صمّم داتا شيت» أصبح أداة إدارية مستقلة ولا يظهر للعملاء.</div>`);
+    const quoteInput=document.getElementById('flServiceQuote');
+    const syncState=(input,key)=>{const state=body.querySelector(`[data-service-state="${key}"]`);if(state)state.textContent=input.checked?'ظاهر':'مخفي';};
+    quoteInput.addEventListener('change',()=>syncState(quoteInput,'quote'));
+    document.getElementById('flServicesForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const save=document.getElementById('flServicesSave');
+      save.disabled=true;save.textContent='جاري الحفظ...';
+      try{
+        const {data,error}=await db.rpc('set_quote_service_visibility',{p_quote_visible:quoteInput.checked});
+        if(error){
+          const missing=String(error.code)==='PGRST202'||String(error.code)==='42883';
+          throw new Error(missing?'شغّل ملف ADMIN_DATASHEET_STAGE31.sql في Supabase أولًا.':(error.message||error));
+        }
+        profile={
+          ...profile,
+          quote_service_visible:data?.quote_service_visible!==false
+        };
+        await loadPublicProfile();
+        renderServices();
+        notify('تم حفظ ظهور طلب عرض السعر للعملاء');
+      }catch(err){
+        notify('تعذر الحفظ: '+(err.message||err));
+        save.disabled=false;save.textContent='حفظ ظهور الخدمة';
+      }
+    });
+  }
+
+  function renderDatasheetDesigner(){
+    layout(`<div class="fl-cloud-head"><div><h2>صمّم داتا شيت</h2><p>أداة إدارية خاصة ولا تظهر في واجهة العملاء.</p></div></div>
+      <div class="fl-cloud-card fl-datasheet-admin-card">
+        <div class="fl-datasheet-admin-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v5h5"></path><path d="M9 12h7M9 16h7"></path></svg></div>
+        <div><h3>مكان أداة تصميم الداتا شيت جاهز</h3><p>ستتم إضافة أداة التصميم الكاملة داخل هذا القسم في المرحلة التالية.</p></div>
+      </div>
+      <div class="fl-cloud-note ok">يظهر هذا القسم دائمًا للمدير الأساسي، ويظهر للمدير المساعد فقط عند تفعيل صلاحية «صمّم داتا شيت» من صفحة صلاحيات admin=2.</div>`);
+  }
 
   function renderProfile(){
     layout(`<div class="fl-cloud-head"><div><h2>البيانات الشخصية</h2><p>كل الحقول اختيارية. إذا تركت الحقل فارغًا فلن يظهر في الموقع.</p></div></div>
