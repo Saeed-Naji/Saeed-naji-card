@@ -1453,13 +1453,13 @@ body.quote-open,body.paper-quote-open{overflow:hidden}
 .fl-service-control-action input:checked+.fl-service-checkbox{background:#18a957;border-color:#18a957;color:#fff}
 .fl-service-control-action em{font-style:normal;font-size:13px;font-weight:800;color:#778397}
 .fl-service-control-action input:checked~em{color:#168047}
-.fl-datasheet-admin-card{display:flex;align-items:center;gap:16px;min-height:120px;background:linear-gradient(135deg,#f7faff,#fffaf0)}
-.fl-datasheet-admin-card h3{margin:0 0 6px;color:#24344a;font-size:19px}.fl-datasheet-admin-card p{margin:0;color:#6f7d91;line-height:1.7}
-.fl-datasheet-admin-icon{width:68px;height:68px;flex:0 0 68px;border-radius:18px;display:grid;place-items:center;background:#e7f0fb;color:#315f93}
-.fl-datasheet-admin-icon svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.fl-datasheet-loading{display:grid;gap:5px;min-height:96px;place-content:center;text-align:center}.fl-datasheet-loading small{color:#718096}
+.fl-datasheet-settings-card{border:1px solid #e4e9f0;background:linear-gradient(180deg,#fff,#fbfcfe)}
+.fl-datasheet-config-list{display:grid;gap:10px}.fl-datasheet-config-row{display:grid;grid-template-columns:minmax(0,1fr) 170px auto;gap:10px;align-items:end;padding:12px;border:1px solid #e3e8ef;border-radius:13px;background:#f9fbfd}.fl-datasheet-unit-field{min-width:0}.fl-datasheet-unit-field label small{font-weight:600;color:#7b8798}.fl-datasheet-remove-field{min-height:44px;align-self:end}.fl-datasheet-config-actions{margin-top:12px}
+.fl-datasheet-designer-card{border:1px solid #e8e2d8;background:linear-gradient(180deg,#fffdfa,#fff)}.fl-datasheet-form{align-items:start}.fl-datasheet-image-field input[type=file]{padding:7px;background:#fbfcfe}.fl-datasheet-preview-wrap{margin-top:8px;min-height:0}.fl-datasheet-preview{display:block;width:min(240px,100%);max-height:220px;object-fit:contain;border:1px solid #dfe5ec;border-radius:14px;padding:8px;background:#fff}.fl-datasheet-section-title{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:4px;padding:11px 13px;border-radius:11px;background:#fff4df;border:1px solid #ffe0aa;color:#7a4b00}.fl-datasheet-section-title strong{font-size:15px}.fl-datasheet-section-title small{color:#8e6e3e}.fl-datasheet-unit{color:#7d8796;font-size:12px}.fl-datasheet-create{min-width:190px}
 @media(max-width:620px){
   .fl-service-control{grid-template-columns:44px minmax(0,1fr);align-items:start;padding:12px;gap:10px}
   .fl-service-control-icon{width:44px;height:44px;border-radius:12px}
   .fl-service-control-action{grid-column:1/-1;justify-content:end;grid-template-columns:28px auto;padding-top:2px}
-  .fl-datasheet-admin-card{align-items:flex-start}.fl-datasheet-admin-icon{width:54px;height:54px;flex-basis:54px;border-radius:14px}.fl-datasheet-admin-icon svg{width:28px;height:28px}
+  .fl-datasheet-config-row{grid-template-columns:1fr}.fl-datasheet-remove-field{width:100%}.fl-datasheet-section-title{align-items:flex-start;flex-direction:column}
 }

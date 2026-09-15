@@ -2153,6 +2153,16 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     return jsPdfLoadPromise;
   }
 
+  // Reuse the exact public product-PDF renderer inside the admin datasheet tool.
+  // This keeps manually designed datasheets visually identical to the approved
+  // "download image with technical information" output.
+  window.flDatasheetPdf = Object.freeze({
+    createPage: createBrandedProductPdfPage,
+    createSinglePage: createSingleProductImagePdfPage,
+    loadJsPdf: loadJsPdfOnDemand,
+    safeFilePart: safePdfFilePart
+  });
+
   async function downloadCatalogPdf() {
     if (catalogPdfBusy) return;
     const entries = catalogPdfEntries();
