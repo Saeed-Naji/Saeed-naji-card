@@ -1638,7 +1638,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
 
   async function loadCompanyLogoImage() {
     if (window.__flCompanyLogoPromise) return window.__flCompanyLogoPromise;
-    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.jpg').catch(() => null);
+    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.png?v=34').catch(() => null);
     return window.__flCompanyLogoPromise;
   }
 

@@ -1,4 +1,4 @@
-// Flower Light Supabase public/admin controller — Stage 32 (based on latest Stage 31).
+// Flower Light Supabase public/admin controller — Stage 34 (logo replacement update based on latest Stage 33).
 // ?admin=1 requires the Owner role; ?admin=2 requires the linked Sub-admin role.
 // Permissions are enforced in both this interface and Supabase RLS/RPC policies.
 
@@ -337,6 +337,11 @@ window.FLOWER_LIGHT_SUPABASE = {
     if(path){el.src=imageUrl(path);el.alt=alt;el.hidden=false;} else {el.removeAttribute('src');el.alt='';el.hidden=true;}
   }
 
+  const BUNDLED_SITE_LOGO='company-logo.png?v=34';
+  function bundledSiteLogo(){
+    return BUNDLED_SITE_LOGO;
+  }
+
   function renderPublicProfile(){
     const profile=window.FLOWER_LIGHT_PROFILE || {};
     const contacts=(Array.isArray(window.FLOWER_LIGHT_CONTACTS)?window.FLOWER_LIGHT_CONTACTS:[]).filter(c=>c.is_visible!==false && String(c.value||'').trim());
@@ -346,8 +351,9 @@ window.FLOWER_LIGHT_SUPABASE = {
     const jobAr=String(profile.job_title_ar||'').trim();
     const jobEn=String(profile.job_title_en||'').trim();
 
-    setImage('siteLogo',profile.logo_path,brand||company||'Logo');
-    setImage('siteWatermark',profile.logo_path,'');
+    const activeLogo=bundledSiteLogo();
+    setImage('siteLogo',activeLogo,brand||company||'Logo');
+    setImage('siteWatermark',activeLogo,'');
     setImage('sitePortrait',profile.portrait_path,fullName||'');
     setText('siteBrandName',brand);
     setText('siteCompanyName',company);
@@ -358,7 +364,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     const brandRow=document.getElementById('siteBrandRow');
     const brandText=document.getElementById('siteBrandText');
     if(brandText) brandText.hidden=!(brand||company);
-    if(brandRow) brandRow.hidden=!(brand||company||profile.logo_path);
+    if(brandRow) brandRow.hidden=!(brand||company||activeLogo);
     const portraitWrap=document.getElementById('sitePortraitWrap');
     if(portraitWrap) portraitWrap.hidden=!profile.portrait_path;
     const person=document.getElementById('sitePerson');
@@ -366,7 +372,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     const identity=document.getElementById('siteIdentity');
     if(identity) identity.hidden=!(profile.portrait_path||fullName||jobAr||jobEn);
     const hero=document.getElementById('siteHero');
-    if(hero) hero.classList.toggle('profile-empty',!(brand||company||profile.logo_path||profile.portrait_path||fullName||jobAr||jobEn));
+    if(hero) hero.classList.toggle('profile-empty',!(brand||company||activeLogo||profile.portrait_path||fullName||jobAr||jobEn));
 
     const displayName=fullName||brand||company||'Digital Business Card';
     document.title=displayName;
