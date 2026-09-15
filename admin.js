@@ -337,7 +337,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     if(path){el.src=imageUrl(path);el.alt=alt;el.hidden=false;} else {el.removeAttribute('src');el.alt='';el.hidden=true;}
   }
 
-  const BUNDLED_SITE_LOGO='company-logo.png?v=34';
+  const BUNDLED_SITE_LOGO='company-logo.png?v=35';
   function bundledSiteLogo(){
     return BUNDLED_SITE_LOGO;
   }

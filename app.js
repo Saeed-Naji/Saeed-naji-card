@@ -1767,35 +1767,37 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const logoAsset = await loadCompanyLogoImage();
     if (logoAsset?.image) {
       try {
-        ctx.drawImage(logoAsset.image, 42, 26, 76, 76);
+        // Enlarged approved logo to match the sample proportion.
+        // Its lower edge now reaches approximately the subtitle line.
+        ctx.drawImage(logoAsset.image, 38, 18, 126, 126);
       } finally {
         try { URL.revokeObjectURL(logoAsset.objectUrl); } catch (_) {}
         window.__flCompanyLogoPromise = Promise.resolve({ image: logoAsset.image, objectUrl: '' });
       }
     }
 
-    // Keep the PDF brand deliberately simple and consistently spaced.
     const englishBrandFirst = 'Flower';
     const englishBrandRest = 'Light';
 
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
     ctx.direction = 'ltr';
+    const brandX = 188;
+    const brandY = 72;
     ctx.fillStyle = '#ff9f0a';
-    ctx.font = '600 39px Arial, sans-serif';
-    const brandX = 136;
-    const firstBrandWidth = Math.min(300, ctx.measureText(englishBrandFirst).width);
-    ctx.fillText(englishBrandFirst, brandX, 70, 280);
+    ctx.font = '600 54px Arial, sans-serif';
+    const firstBrandWidth = Math.min(360, ctx.measureText(englishBrandFirst).width);
+    ctx.fillText(englishBrandFirst, brandX, brandY, 360);
     ctx.fillStyle = '#2b2b2b';
-    ctx.fillText(englishBrandRest, brandX + firstBrandWidth + 14, 70, Math.max(110, 480 - firstBrandWidth));
+    ctx.fillText(englishBrandRest, brandX + firstBrandWidth + 16, brandY, Math.max(130, 520 - firstBrandWidth));
 
     ctx.fillStyle = '#666666';
-    ctx.font = '400 15px Arial, sans-serif';
+    ctx.font = '400 17px Arial, sans-serif';
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
-    ctx.fillText('Better Lighting for a Brighter Life', brandX, 116, 450);
+    ctx.fillText('Better Lighting for a Brighter Life', brandX, 126, 470);
     ctx.fillStyle = '#ff9f0a';
-    ctx.fillRect(brandX, 126, 30, 3);
+    ctx.fillRect(brandX, 136, 34, 3);
 
     const warranty = productWarrantyYears(item);
     if (warranty) {
