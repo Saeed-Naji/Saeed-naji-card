@@ -1673,3 +1673,47 @@
 .fl-whatsapp-include-toggle input{width:16px!important;height:16px!important;min-width:16px;margin:0!important;accent-color:#25d366;cursor:pointer}
 .fl-whatsapp-include-toggle span{display:inline-block}
 @media(max-width:640px){.fl-field-label-inline{align-items:flex-start}.fl-whatsapp-include-toggle{white-space:normal}}
+
+
+/* ===== STAGE77 — flexible retail / wholesale / bulk price tiers ===== */
+.fl-pricing-editor-head{align-items:flex-start}
+.fl-add-price-tier-btn{flex:0 0 auto;white-space:nowrap}
+.fl-price-tier-list{display:grid;gap:10px;margin-bottom:12px}
+.fl-price-tier-row{
+  display:grid;
+  grid-template-columns:minmax(120px,.9fr) minmax(130px,1fr) minmax(250px,1.7fr) auto;
+  gap:10px;
+  align-items:end;
+  padding:12px;
+  border:1px solid #eadbc2;
+  border-radius:13px;
+  background:#fff;
+}
+.fl-price-tier-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fl-price-tier-range[hidden]{display:none!important}
+.fl-price-tier-row.is-retail{grid-template-columns:minmax(140px,1fr) minmax(150px,1fr) auto}
+.fl-price-tier-remove{
+  min-height:42px;
+  border:1px solid #f0caca;
+  border-radius:11px;
+  background:#fff7f7;
+  color:#c23a24;
+  font:inherit;
+  font-size:12px;
+  font-weight:900;
+  padding:8px 13px;
+  cursor:pointer;
+}
+.fl-price-tier-remove:hover{background:#fff0f0}
+.product-price-row.is-bulk strong{color:#6a4b9a}
+
+@media(max-width:760px){
+  .fl-pricing-editor-head{flex-direction:column}
+  .fl-add-price-tier-btn{width:100%}
+  .fl-price-tier-row,.fl-price-tier-row.is-retail{grid-template-columns:1fr}
+  .fl-price-tier-range{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fl-price-tier-remove{width:100%}
+}
+@media(max-width:430px){
+  .fl-price-tier-range{grid-template-columns:1fr}
+}

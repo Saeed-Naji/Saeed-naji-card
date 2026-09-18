@@ -122,6 +122,123 @@ window.FLOWER_LIGHT_SUPABASE = {
   const PRODUCT_SPEC_KEYS = new Set(PRODUCT_SPEC_FIELDS.map(field => field.key));
   const WHATSAPP_META_SHOW_DESCRIPTION='__whatsapp_show_description';
   const WHATSAPP_META_SHOW_SPECS='__whatsapp_show_specifications';
+  const PRICING_META_KEY='__pricing_tiers_v2';
+  const PRICE_TIER_TYPES=[
+    {key:'retail',label:'مفرق',needsRange:false},
+    {key:'wholesale',label:'جملة',needsRange:true},
+    {key:'bulk',label:'جملة الجملة',needsRange:true}
+  ];
+  const PRICE_TIER_TYPE_MAP=new Map(PRICE_TIER_TYPES.map(item=>[item.key,item]));
+
+  function normalizePriceTierNumber(value){
+    if(value==null || value==='') return null;
+    const n=Number(value);
+    return Number.isFinite(n) && n>=0 ? n : null;
+  }
+
+  function normalizePriceTierQty(value){
+    if(value==null || value==='') return null;
+    const n=Math.trunc(Number(value));
+    return Number.isFinite(n) && n>=1 ? n : null;
+  }
+
+  function legacyPricingTiers(product){
+    const tiers=[];
+    const retail=normalizePriceTierNumber(product?.price);
+    const wholesale=normalizePriceTierNumber(product?.wholesale_price);
+    const wholesaleMin=normalizePriceTierQty(product?.wholesale_min_qty);
+    if(retail!=null) tiers.push({type:'retail',price:retail,min_qty:null,max_qty:null});
+    if(wholesale!=null) tiers.push({type:'wholesale',price:wholesale,min_qty:wholesaleMin,max_qty:null});
+    return tiers;
+  }
+
+  function productPricingTiers(rawSpecifications,legacyProduct=null){
+    let parsed=[];
+    if(Array.isArray(rawSpecifications)){
+      const meta=rawSpecifications.find(item=>item && typeof item==='object' && String(item.key||'').trim()===PRICING_META_KEY);
+      if(meta){
+        try{
+          const value=typeof meta.value==='string'?JSON.parse(meta.value):meta.value;
+          if(Array.isArray(value)) parsed=value;
+        }catch(_){}
+      }
+    }
+    const tiers=parsed.map(row=>{
+      if(!row || typeof row!=='object') return null;
+      const type=String(row.type||'').trim();
+      if(!PRICE_TIER_TYPE_MAP.has(type)) return null;
+      const price=normalizePriceTierNumber(row.price);
+      if(price==null) return null;
+      const needsRange=PRICE_TIER_TYPE_MAP.get(type)?.needsRange===true;
+      let min_qty=needsRange?normalizePriceTierQty(row.min_qty):null;
+      let max_qty=needsRange?normalizePriceTierQty(row.max_qty):null;
+      if(min_qty!=null && max_qty!=null && max_qty<min_qty)[min_qty,max_qty]=[max_qty,min_qty];
+      return {type,price,min_qty,max_qty};
+    }).filter(Boolean).slice(0,12);
+    return tiers.length?tiers:legacyPricingTiers(legacyProduct);
+  }
+
+  function pricingMetaRow(tiers){
+    return {key:PRICING_META_KEY,label:'',value:JSON.stringify(Array.isArray(tiers)?tiers:[]),unit:''};
+  }
+
+  function pricingTierEditorRowHtml(tier=null){
+    const type=PRICE_TIER_TYPE_MAP.has(tier?.type)?tier.type:'retail';
+    const options=PRICE_TIER_TYPES.map(item=>`<option value="${item.key}" ${item.key===type?'selected':''}>${item.label}</option>`).join('');
+    return `<div class="fl-price-tier-row" data-price-tier-row>
+      <div class="fl-cloud-field"><label>نوع السعر</label><select data-price-tier-type>${options}</select></div>
+      <div class="fl-cloud-field"><label>السعر (ر.س)</label><input data-price-tier-price type="number" min="0" step="0.01" inputmode="decimal" value="${tier?.price==null?'':esc(tier.price)}" placeholder="مثال: 35"></div>
+      <div class="fl-price-tier-range" data-price-tier-range>
+        <div class="fl-cloud-field"><label>العدد الأدنى</label><input data-price-tier-min type="number" min="1" step="1" inputmode="numeric" value="${tier?.min_qty==null?'':esc(tier.min_qty)}" placeholder="مثال: 10"></div>
+        <div class="fl-cloud-field"><label>العدد الأعلى</label><input data-price-tier-max type="number" min="1" step="1" inputmode="numeric" value="${tier?.max_qty==null?'':esc(tier.max_qty)}" placeholder="مثال: 49"></div>
+      </div>
+      <button class="fl-price-tier-remove" data-price-tier-remove type="button">حذف</button>
+    </div>`;
+  }
+
+  function productPricingEditorHtml(prod){
+    const tiers=productPricingTiers(prod?.specifications,prod);
+    const rows=(tiers.length?tiers:[{type:'retail',price:null,min_qty:null,max_qty:null}]).map(pricingTierEditorRowHtml).join('');
+    return `<section class="fl-pricing-editor full">
+      <div class="fl-pricing-editor-head">
+        <div><strong>الأسعار</strong><small>أضف مفرق أو جملة أو جملة الجملة. في الجملة وجملة الجملة يمكنك تحديد العدد الأدنى والأعلى.</small></div>
+        <button class="fl-cloud-btn fl-add-price-tier-btn" id="flAddPriceTier" type="button">+ إضافة خانة سعر</button>
+      </div>
+      <div id="flPriceTierList" class="fl-price-tier-list">${rows}</div>
+      <label class="fl-cloud-check fl-limited-offer-check"><input id="flProdLimitedOffer" type="checkbox" ${prod?.limited_offer===true?'checked':''}> <span><strong>عرض لفترة محدودة</strong><small>عند تفعيله تظهر شارة على زاوية صورة المنتج.</small></span></label>
+    </section>`;
+  }
+
+  function syncPriceTierRow(row){
+    if(!row) return;
+    const type=String(row.querySelector('[data-price-tier-type]')?.value||'retail');
+    const needsRange=PRICE_TIER_TYPE_MAP.get(type)?.needsRange===true;
+    row.classList.toggle('is-retail',!needsRange);
+    const range=row.querySelector('[data-price-tier-range]');
+    if(range) range.hidden=!needsRange;
+  }
+
+  function collectProductPricingTiers(){
+    const tiers=[];
+    document.querySelectorAll('[data-price-tier-row]').forEach((row,index)=>{
+      const type=String(row.querySelector('[data-price-tier-type]')?.value||'retail').trim();
+      const def=PRICE_TIER_TYPE_MAP.get(type);
+      if(!def) return;
+      const rawPrice=String(row.querySelector('[data-price-tier-price]')?.value||'').trim();
+      const rawMin=String(row.querySelector('[data-price-tier-min]')?.value||'').trim();
+      const rawMax=String(row.querySelector('[data-price-tier-max]')?.value||'').trim();
+      if(rawPrice==='' && rawMin==='' && rawMax==='') return;
+      const price=normalizePriceTierNumber(rawPrice);
+      if(price==null) throw new Error(`أدخل سعرًا صحيحًا في خانة السعر رقم ${index+1}`);
+      let min_qty=def.needsRange?normalizePriceTierQty(rawMin):null;
+      let max_qty=def.needsRange?normalizePriceTierQty(rawMax):null;
+      if(def.needsRange && rawMin!=='' && min_qty==null) throw new Error(`العدد الأدنى في خانة السعر رقم ${index+1} غير صحيح`);
+      if(def.needsRange && rawMax!=='' && max_qty==null) throw new Error(`العدد الأعلى في خانة السعر رقم ${index+1} غير صحيح`);
+      if(min_qty!=null && max_qty!=null && max_qty<min_qty) throw new Error(`في خانة السعر رقم ${index+1}: العدد الأعلى يجب أن يكون أكبر من أو يساوي العدد الأدنى`);
+      tiers.push({type,price,min_qty,max_qty});
+    });
+    return tiers.slice(0,12);
+  }
 
   function productWhatsAppOption(raw,key){
     if(!Array.isArray(raw)) return false;
@@ -144,7 +261,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     return rows.map((row,index)=>{
       if(!row || typeof row!=='object') return null;
       const key=String(row.key||`custom_${index+1}`).trim();
-      if(key===WHATSAPP_META_SHOW_DESCRIPTION || key===WHATSAPP_META_SHOW_SPECS) return null;
+      if(key===WHATSAPP_META_SHOW_DESCRIPTION || key===WHATSAPP_META_SHOW_SPECS || key===PRICING_META_KEY) return null;
       const def=PRODUCT_SPEC_FIELDS.find(field=>field.key===key);
       const label=String(row.label||def?.label||key).trim();
       const value=String(row.value??'').trim();
@@ -179,7 +296,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     return `<div class="fl-product-spec-section full"><div class="fl-product-spec-head"><div><div class="fl-field-label-inline"><strong>المواصفات الفنية</strong><label class="fl-whatsapp-include-toggle"><input id="flProdWhatsAppShowSpecs" type="checkbox" ${showInWhatsApp?'checked':''}><span>إظهار في رسالة واتساب</span></label></div><small>اكتب اسم الصفة وقيمتها بنفسك، مثل: القدرة — 30W. أضف فقط المواصفات التي تحتاجها.</small></div><button class="fl-cloud-btn fl-add-spec-btn" id="flAddProductSpec" type="button">+ إضافة صفة</button></div><div id="flFlexibleSpecs" class="fl-flex-spec-list">${rows}</div></div>`;
   }
 
-  function collectProductSpecifications(){
+  function collectProductSpecifications(pricingTiers=[]){
     const specs=[];
     document.querySelectorAll('[data-flex-spec-row]').forEach((row,index)=>{
       const label=String(row.querySelector('[data-flex-spec-label]')?.value||'').trim();
@@ -192,7 +309,7 @@ window.FLOWER_LIGHT_SUPABASE = {
         unit:'',
       });
     });
-    return [...specs.slice(0,30),...productWhatsAppMetaRows()];
+    return [...specs.slice(0,30),...productWhatsAppMetaRows(),pricingMetaRow(pricingTiers)];
   }
 
   function imageUrl(path){
@@ -2151,7 +2268,8 @@ window.FLOWER_LIGHT_SUPABASE = {
         specifications:[
           ...normalizeSpecifications(source.specifications),
           {key:WHATSAPP_META_SHOW_DESCRIPTION,label:'',value:productWhatsAppOption(source.specifications,WHATSAPP_META_SHOW_DESCRIPTION)?'1':'0',unit:''},
-          {key:WHATSAPP_META_SHOW_SPECS,label:'',value:productWhatsAppOption(source.specifications,WHATSAPP_META_SHOW_SPECS)?'1':'0',unit:''}
+          {key:WHATSAPP_META_SHOW_SPECS,label:'',value:productWhatsAppOption(source.specifications,WHATSAPP_META_SHOW_SPECS)?'1':'0',unit:''},
+          pricingMetaRow(productPricingTiers(source.specifications,source))
         ],
         price:source.price==null?null:Number(source.price),
         wholesale_price:source.wholesale_price==null?null:Number(source.wholesale_price),
@@ -2374,7 +2492,13 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   const IMPORT_HEADER_ALIASES={
     product_id:['معرف المنتج','product id','product_id'],name:['اسم المنتج','الاسم','product name','name'],model:['الكود','كود المنتج','رقم المنتج','model','code','sku'],caption:['الوصف','description','caption'],
-    price:['سعر القطاعي','سعر التجزئه','سعر التجزئة','retail price','price'],wholesale_price:['سعر الجمله','سعر الجملة','wholesale price'],wholesale_min_qty:['كميه الجمله','كمية الجملة','اقل كميه للجمله','أقل كمية للجملة','wholesale qty','wholesale min qty'],
+    price:['سعر المفرق','سعر القطاعي','سعر التجزئه','سعر التجزئة','retail price','price'],
+    wholesale_price:['سعر الجمله','سعر الجملة','wholesale price'],
+    wholesale_min_qty:['الجملة أدنى','اقل كميه للجمله','أقل كمية للجملة','wholesale min qty'],
+    wholesale_max_qty:['الجملة أعلى','اعلى كميه للجمله','أعلى كمية للجملة','wholesale max qty'],
+    bulk_price:['سعر جملة الجملة','سعر جمله الجمله','bulk wholesale price','bulk price'],
+    bulk_min_qty:['جملة الجملة أدنى','جمله الجمله ادنى','bulk min qty'],
+    bulk_max_qty:['جملة الجملة أعلى','جمله الجمله اعلى','bulk max qty'],
     limited_offer:['عرض محدود','عرض لفتره محدوده','عرض لفترة محدودة','limited offer'],is_visible:['ظاهر','اظهار','إظهار','visible'],sort_order:['الترتيب','sort','sort order']
   };
   const IMPORT_ALIAS_MAP=(()=>{const m=new Map();Object.entries(IMPORT_HEADER_ALIASES).forEach(([key,list])=>list.forEach(v=>m.set(importKey(v),key)));return m;})();
@@ -2432,7 +2556,18 @@ window.FLOWER_LIGHT_SUPABASE = {
         const sources=[],unresolved=[];imageRefs.slice(0,4).forEach(ref=>{const src=resolveImportImageReference(ref,outerLookup);if(src){sources.push(src);resolvedImages++;}else{unresolved.push(ref);missingImages++;}});
         if(!sources.length){const excelRow=Number(row.__rowNum__??(rowIndex+1));const embeddedForRow=embedded.get(sheetName)?.get(excelRow)||[];embeddedForRow.slice(0,4).forEach(src=>{sources.push(src);resolvedImages++;});}
         const specs=[];headers.forEach((header,index)=>{if(headerMap.get(header))return;const spec=parseImportSpec(header,row[header],index);if(spec)specs.push(spec);});
-        const product={sheetName,rowNumber:Number(row.__rowNum__??(rowIndex+1))+1,product_id:importText(get('product_id')),name,model:importText(get('model')),caption:importText(get('caption')),price:importNumber(get('price')),wholesale_price:importNumber(get('wholesale_price')),wholesale_min_qty:importNumber(get('wholesale_min_qty')),limited_offer:importBoolean(get('limited_offer'),false),is_visible:importBoolean(get('is_visible'),true),sort_order:importNumber(get('sort_order')),specifications:specs.slice(0,30),imageSources:sources.slice(0,4),imageRefs:imageRefs.slice(0,4),unresolvedImages:unresolved};
+        const retailPrice=importNumber(get('price'));
+        const wholesalePrice=importNumber(get('wholesale_price'));
+        const wholesaleMin=importNumber(get('wholesale_min_qty'));
+        const wholesaleMax=importNumber(get('wholesale_max_qty'));
+        const bulkPrice=importNumber(get('bulk_price'));
+        const bulkMin=importNumber(get('bulk_min_qty'));
+        const bulkMax=importNumber(get('bulk_max_qty'));
+        const pricingTiers=[];
+        if(retailPrice!=null) pricingTiers.push({type:'retail',price:retailPrice,min_qty:null,max_qty:null});
+        if(wholesalePrice!=null) pricingTiers.push({type:'wholesale',price:wholesalePrice,min_qty:wholesaleMin==null?null:Math.trunc(wholesaleMin),max_qty:wholesaleMax==null?null:Math.trunc(wholesaleMax)});
+        if(bulkPrice!=null) pricingTiers.push({type:'bulk',price:bulkPrice,min_qty:bulkMin==null?null:Math.trunc(bulkMin),max_qty:bulkMax==null?null:Math.trunc(bulkMax)});
+        const product={sheetName,rowNumber:Number(row.__rowNum__??(rowIndex+1))+1,product_id:importText(get('product_id')),name,model:importText(get('model')),caption:importText(get('caption')),price:retailPrice,wholesale_price:wholesalePrice,wholesale_min_qty:wholesaleMin,pricing_tiers:pricingTiers,limited_offer:importBoolean(get('limited_offer'),false),is_visible:importBoolean(get('is_visible'),true),sort_order:importNumber(get('sort_order')),specifications:specs.slice(0,30),imageSources:sources.slice(0,4),imageRefs:imageRefs.slice(0,4),unresolvedImages:unresolved};
         section.products.push(product);total++;
       });
       if(section.products.length)sections.push(section);
@@ -2476,10 +2611,10 @@ window.FLOWER_LIGHT_SUPABASE = {
   function excelSpecKey(spec){return `${importKey(spec?.label)}|${importKey(spec?.unit)}`;}
   function excelBoolean(value){return value===false?'لا':'نعم';}
   function liveExcelHeaders(specHeaders=[]){
-    return ['معرف المنتج','اسم المنتج','الكود','الوصف','سعر القطاعي','سعر الجملة','كمية الجملة','عرض محدود','ظاهر','الترتيب','الصورة 1','الصورة 2','الصورة 3','الصورة 4',...specHeaders];
+    return ['معرف المنتج','اسم المنتج','الكود','الوصف','سعر المفرق','سعر الجملة','الجملة أدنى','الجملة أعلى','سعر جملة الجملة','جملة الجملة أدنى','جملة الجملة أعلى','عرض محدود','ظاهر','الترتيب','الصورة 1','الصورة 2','الصورة 3','الصورة 4',...specHeaders];
   }
   function excelColumnWidths(specCount){
-    return [24,28,18,36,14,14,14,14,12,12,36,36,36,36,...Array(specCount).fill(20)].map(w=>({wch:w}));
+    return [24,28,18,36,14,14,14,14,16,16,16,14,12,12,36,36,36,36,...Array(specCount).fill(20)].map(w=>({wch:w}));
   }
   async function downloadExcelTemplate(event){
     const button=event?.currentTarget||document.getElementById('flDownloadExcelTemplate');const original=button?.innerHTML;
@@ -2509,9 +2644,14 @@ window.FLOWER_LIGHT_SUPABASE = {
           const gallery=adminGalleryRows(product).slice(0,4);const images=gallery.map(item=>imageUrl(item.image_path)).filter(Boolean);
           while(images.length<4)images.push('');
           const specs=new Map(normalizeSpecifications(product.specifications).map(spec=>[excelSpecKey(spec),importText(spec.value)]));
+          const pricing=productPricingTiers(product.specifications,product);
+          const retail=pricing.find(row=>row.type==='retail');
+          const wholesale=pricing.find(row=>row.type==='wholesale');
+          const bulk=pricing.find(row=>row.type==='bulk');
           return [
             importText(product.id),importText(product.name),importText(product.model),importText(product.caption),
-            product.price==null?'':Number(product.price),product.wholesale_price==null?'':Number(product.wholesale_price),product.wholesale_min_qty==null?'':Number(product.wholesale_min_qty),
+            retail?.price??'',wholesale?.price??'',wholesale?.min_qty??'',wholesale?.max_qty??'',
+            bulk?.price??'',bulk?.min_qty??'',bulk?.max_qty??'',
             product.limited_offer===true?'نعم':'لا',excelBoolean(product.is_visible),product.sort_order==null?'':Number(product.sort_order),...images,
             ...specDefs.map(def=>specs.get(def.key)||'')
           ];
@@ -2582,8 +2722,22 @@ window.FLOWER_LIGHT_SUPABASE = {
             for(const source of row.imageSources.slice(0,MAX_PRODUCT_IMAGES)){const file=await importSourceToFile(source);const optimized=await fileToOptimizedBlob(file);const path=await uploadBlob(optimized,category.id);uploaded.push(path);imagePaths.push(path);}
           }else if(existing){imagePaths=[...previousImagePaths];}
           if(!imagePaths.length)throw new Error(row.unresolvedImages.length?`الصور غير موجودة: ${row.unresolvedImages.join('، ')}`:'لا توجد صورة للمنتج');
-          const payload={category_id:category.id,name:row.name,model:row.model,caption:row.caption,specifications:row.specifications,price:row.price,wholesale_price:row.wholesale_price,wholesale_min_qty:row.wholesale_min_qty!=null?Math.trunc(row.wholesale_min_qty):null,limited_offer:row.limited_offer,is_visible:row.is_visible,sort_order:row.sort_order!=null?Math.trunc(row.sort_order):(existing?Number(existing.sort_order)||0:newSort)};
-          if(payload.wholesale_min_qty!=null&&payload.wholesale_min_qty<2)payload.wholesale_min_qty=null;
+          const importedPricing=Array.isArray(row.pricing_tiers)?row.pricing_tiers:[];
+          for(const tier of importedPricing){
+            if(tier.min_qty!=null&&tier.min_qty<1)tier.min_qty=null;
+            if(tier.max_qty!=null&&tier.max_qty<1)tier.max_qty=null;
+            if(tier.min_qty!=null&&tier.max_qty!=null&&tier.max_qty<tier.min_qty)[tier.min_qty,tier.max_qty]=[tier.max_qty,tier.min_qty];
+          }
+          const importedRetail=importedPricing.find(tier=>tier.type==='retail');
+          const importedWholesale=importedPricing.find(tier=>tier.type==='wholesale');
+          const preservedMeta=existing?[
+            {key:WHATSAPP_META_SHOW_DESCRIPTION,label:'',value:productWhatsAppOption(existing.specifications,WHATSAPP_META_SHOW_DESCRIPTION)?'1':'0',unit:''},
+            {key:WHATSAPP_META_SHOW_SPECS,label:'',value:productWhatsAppOption(existing.specifications,WHATSAPP_META_SHOW_SPECS)?'1':'0',unit:''}
+          ]:[
+            {key:WHATSAPP_META_SHOW_DESCRIPTION,label:'',value:'0',unit:''},
+            {key:WHATSAPP_META_SHOW_SPECS,label:'',value:'0',unit:''}
+          ];
+          const payload={category_id:category.id,name:row.name,model:row.model,caption:row.caption,specifications:[...row.specifications,...preservedMeta,pricingMetaRow(importedPricing)],price:importedRetail?.price??null,wholesale_price:importedWholesale?.price??null,wholesale_min_qty:importedWholesale?.min_qty??null,limited_offer:row.limited_offer,is_visible:row.is_visible,sort_order:row.sort_order!=null?Math.trunc(row.sort_order):(existing?Number(existing.sort_order)||0:newSort)};
           let saved;
           if(existing){const {data,error}=await db.from('products').update(payload).eq('id',existing.id).select().single();if(error)throw error;saved=data;updated++;}
           else{const {data,error}=await db.from('products').insert({...payload,image_path:imagePaths[0]}).select().single();if(error)throw error;saved=data;createdId=saved.id;created++;newSort+=10;}
@@ -2740,13 +2894,16 @@ window.FLOWER_LIGHT_SUPABASE = {
       const specCount=normalizeSpecifications(p.specifications).length;
       const gallery=adminGalleryRows(p);
       const imagePath=gallery[0]?.image_path||p.image_path||p.image_url||'';
-      const retailPrice=p.price!=null&&p.price!==''?`${Number(p.price).toLocaleString('en-US',{maximumFractionDigits:2})} ر.س`:'';
-      const wholesalePrice=p.wholesale_price!=null&&p.wholesale_price!==''?`${Number(p.wholesale_price).toLocaleString('en-US',{maximumFractionDigits:2})} ر.س`:'';
-      const wholesaleMin=Number(p.wholesale_min_qty)>=2?` من ${Number(p.wholesale_min_qty).toLocaleString('en-US')}+`:'';
+      const pricingSummary=productPricingTiers(p.specifications,p).map(tier=>{
+        const label=PRICE_TIER_TYPE_MAP.get(tier.type)?.label||'سعر';
+        const price=`${Number(tier.price).toLocaleString('en-US',{maximumFractionDigits:2})} ر.س`;
+        const range=tier.min_qty!=null&&tier.max_qty!=null?` ${tier.min_qty}-${tier.max_qty}`:tier.min_qty!=null?` من ${tier.min_qty}+`:tier.max_qty!=null?` حتى ${tier.max_qty}`:'';
+        return `${label} ${price}${range}`;
+      }).join(' · ');
       return `<article class="fl-cloud-product" data-product-id="${p.id}">
         <button class="fl-product-drag-handle" type="button" aria-label="اسحب لتغيير ترتيب ${esc(p.name||'المنتج')}" title="اسحب لتغيير الترتيب"><span>⋮⋮</span><small>${index+1}</small></button>
         <div class="fl-cloud-product-image-wrap"><img src="${esc(imageUrl(imagePath))}" alt="${esc(p.name||'منتج')}" loading="lazy"><span class="fl-admin-gallery-count">${gallery.length} / ${MAX_PRODUCT_IMAGES} صور</span></div>
-        <div class="fl-cloud-product-body"><strong>${esc(p.name||'منتج بدون اسم')}</strong><small>${esc(p.model?`الكود ${p.model}`:'بدون كود')} · ${p.is_visible===false?'مخفي':'ظاهر'}${specCount?` · ${specCount} معلومات`:''}${retailPrice?` · قطاعي ${retailPrice}`:''}${wholesalePrice?` · جملة ${wholesalePrice}${wholesaleMin}`:''}${p.limited_offer===true?' · عرض محدود':''}</small>
+        <div class="fl-cloud-product-body"><strong>${esc(p.name||'منتج بدون اسم')}</strong><small>${esc(p.model?`الكود ${p.model}`:'بدون كود')} · ${p.is_visible===false?'مخفي':'ظاهر'}${specCount?` · ${specCount} معلومات`:''}${pricingSummary?` · ${esc(pricingSummary)}`:''}${p.limited_offer===true?' · عرض محدود':''}</small>
         <div class="fl-cloud-product-actions"><button class="fl-cloud-mini" data-prod-edit="${p.id}" type="button">تعديل</button><button class="fl-cloud-mini" data-prod-copy="${p.id}" type="button">نسخ</button><button class="fl-cloud-mini red" data-prod-delete="${p.id}" type="button">حذف</button></div></div></article>`;
     }).join('');
 
@@ -2869,15 +3026,7 @@ window.FLOWER_LIGHT_SUPABASE = {
       <div class="fl-cloud-field"><label>اسم المنتج</label><input id="flProdName" required value="${esc(prod?.name||'')}" placeholder="مثال: جدارية LED"></div>
       <div class="fl-cloud-field"><label>رقم المنتج / الكود</label><input id="flProdModel" value="${esc(prod?.model||'')}" placeholder="مثال: 1010 أو WL-205"></div>
       <div class="fl-cloud-field full"><div class="fl-field-label-inline"><label for="flProdCaption">الوصف</label><label class="fl-whatsapp-include-toggle"><input id="flProdWhatsAppShowDescription" type="checkbox" ${productWhatsAppOption(prod?.specifications,WHATSAPP_META_SHOW_DESCRIPTION)?'checked':''}><span>إظهار في رسالة واتساب</span></label></div><textarea id="flProdCaption" placeholder="وصف مختصر">${esc(prod?.caption||'')}</textarea></div>
-      <section class="fl-pricing-editor full">
-        <div class="fl-pricing-editor-head"><div><strong>الأسعار</strong><small>كل الحقول اختيارية. اكتب القطاعي والجملة وحدد أقل كمية تستحق سعر الجملة.</small></div></div>
-        <div class="fl-pricing-editor-grid">
-          <div class="fl-cloud-field"><label>سعر القطاعي (ر.س)</label><input id="flProdPrice" type="number" min="0" step="0.01" inputmode="decimal" value="${prod?.price==null?'':esc(prod.price)}" placeholder="مثال: 35"><small class="fl-field-help">يظهر كـ «سعر القطاعي».</small></div>
-          <div class="fl-cloud-field"><label>سعر الجملة (ر.س)</label><input id="flProdWholesalePrice" type="number" min="0" step="0.01" inputmode="decimal" value="${prod?.wholesale_price==null?'':esc(prod.wholesale_price)}" placeholder="مثال: 28"><small class="fl-field-help">اتركه فارغًا إذا لم يوجد سعر جملة.</small></div>
-          <div class="fl-cloud-field"><label>سعر الجملة يبدأ من كمية</label><input id="flProdWholesaleMinQty" type="number" min="2" step="1" inputmode="numeric" value="${prod?.wholesale_min_qty==null?'':esc(prod.wholesale_min_qty)}" placeholder="مثال: 10"><small class="fl-field-help">مثال: 10 = سعر الجملة من 10 قطع فأكثر.</small></div>
-          <label class="fl-cloud-check fl-limited-offer-check"><input id="flProdLimitedOffer" type="checkbox" ${prod?.limited_offer===true?'checked':''}> <span><strong>عرض لفترة محدودة</strong><small>عند تفعيله تظهر شارة على زاوية صورة المنتج.</small></span></label>
-        </div>
-      </section>
+      ${productPricingEditorHtml(prod)}
       ${productSpecsFormHtml(prod)}
       <section class="fl-product-gallery-editor full">
         <div class="fl-product-gallery-head"><div><strong>صور المنتج</strong><small>حتى 4 صور فقط. الصورة الأولى هي الأساسية وتظهر في بطاقة المنتج وPDF.</small></div><span id="flProdGalleryCount">0 / ${MAX_PRODUCT_IMAGES}</span></div>
@@ -2914,6 +3063,32 @@ window.FLOWER_LIGHT_SUPABASE = {
       refreshSpecRemoveButtons();
     });
     refreshSpecRemoveButtons();
+
+    const priceTierList=document.getElementById('flPriceTierList');
+    const addPriceTier=document.getElementById('flAddPriceTier');
+    const refreshPriceTiers=()=>priceTierList?.querySelectorAll('[data-price-tier-row]').forEach(syncPriceTierRow);
+    addPriceTier?.addEventListener('click',()=>{
+      if(!priceTierList) return;
+      const count=priceTierList.querySelectorAll('[data-price-tier-row]').length;
+      if(count>=12){notify('الحد الأقصى 12 خانة سعر للمنتج');return;}
+      priceTierList.insertAdjacentHTML('beforeend',pricingTierEditorRowHtml({type:count===0?'retail':count===1?'wholesale':'bulk',price:null,min_qty:null,max_qty:null}));
+      const row=priceTierList.lastElementChild;
+      syncPriceTierRow(row);
+      row?.querySelector('[data-price-tier-price]')?.focus();
+    });
+    priceTierList?.addEventListener('change',event=>{
+      if(event.target.matches?.('[data-price-tier-type]')) syncPriceTierRow(event.target.closest('[data-price-tier-row]'));
+    });
+    priceTierList?.addEventListener('click',event=>{
+      const button=event.target.closest?.('[data-price-tier-remove]');
+      if(!button) return;
+      button.closest('[data-price-tier-row]')?.remove();
+      if(!priceTierList.querySelector('[data-price-tier-row]')){
+        priceTierList.insertAdjacentHTML('beforeend',pricingTierEditorRowHtml({type:'retail',price:null,min_qty:null,max_qty:null}));
+      }
+      refreshPriceTiers();
+    });
+    refreshPriceTiers();
 
     const galleryGrid=document.getElementById('flProductGalleryGrid');
     const galleryCount=document.getElementById('flProdGalleryCount');
@@ -3010,20 +3185,22 @@ window.FLOWER_LIGHT_SUPABASE = {
         if(!imagePaths.length) throw new Error('أضف صورة واحدة على الأقل');
         if(imagePaths.length>MAX_PRODUCT_IMAGES) throw new Error('الحد الأقصى 4 صور');
         const primaryPath=imagePaths[0];
+        const pricingTiers=collectProductPricingTiers();
+        const firstRetail=pricingTiers.find(row=>row.type==='retail');
+        const firstWholesale=pricingTiers.find(row=>row.type==='wholesale');
         const payload={
           category_id,
           name,
           model:document.getElementById('flProdModel').value.trim(),
           caption:document.getElementById('flProdCaption').value.trim(),
-          specifications:collectProductSpecifications(),
-          price:(()=>{const v=String(document.getElementById('flProdPrice')?.value||'').trim();return v===''?null:Number(v);})(),
-          wholesale_price:(()=>{const v=String(document.getElementById('flProdWholesalePrice')?.value||'').trim();return v===''?null:Number(v);})(),
-          wholesale_min_qty:(()=>{const v=String(document.getElementById('flProdWholesaleMinQty')?.value||'').trim();return v===''?null:Math.trunc(Number(v));})(),
+          specifications:collectProductSpecifications(pricingTiers),
+          price:firstRetail?.price??null,
+          wholesale_price:firstWholesale?.price??null,
+          wholesale_min_qty:firstWholesale?.min_qty??null,
           limited_offer:document.getElementById('flProdLimitedOffer')?.checked===true,
           sort_order:Number(document.getElementById('flProdSort').value)||0,
           is_visible:document.getElementById('flProdVisible').checked
         };
-        if(payload.wholesale_min_qty!=null && (!Number.isFinite(payload.wholesale_min_qty) || payload.wholesale_min_qty<2)) throw new Error('أقل كمية للجملة يجب أن تكون 2 أو أكثر');
         let savedProduct;
         if(prod){
           const {data,error}=await db.from('products').update(payload).eq('id',prod.id).select().single();
