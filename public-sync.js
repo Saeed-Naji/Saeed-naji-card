@@ -349,7 +349,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     }
   }
 
-  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=73',document.baseURI).href;
+  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=75',document.baseURI).href;
   function bundledSiteLogo(){
     return BUNDLED_SITE_LOGO;
   }

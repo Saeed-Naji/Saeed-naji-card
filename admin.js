@@ -1,4 +1,4 @@
-// Flower Light Supabase admin controller — Stage 73 (maintenance fixes).
+// Flower Light Supabase admin controller — Stage 76 (WhatsApp field visibility controls).
 // ?admin=1 requires the Owner role; ?admin=2 requires the linked Sub-admin role.
 // Permissions are enforced in both this interface and Supabase RLS/RPC policies.
 
@@ -120,6 +120,22 @@ window.FLOWER_LIGHT_SUPABASE = {
     {key:'bulb_count', label:'عدد اللمبات', placeholder:'مثال: 6'}
   ];
   const PRODUCT_SPEC_KEYS = new Set(PRODUCT_SPEC_FIELDS.map(field => field.key));
+  const WHATSAPP_META_SHOW_DESCRIPTION='__whatsapp_show_description';
+  const WHATSAPP_META_SHOW_SPECS='__whatsapp_show_specifications';
+
+  function productWhatsAppOption(raw,key){
+    if(!Array.isArray(raw)) return false;
+    const row=raw.find(item=>item && typeof item==='object' && String(item.key||'').trim()===key);
+    if(!row) return false;
+    return ['1','true','yes','on'].includes(String(row.value??'').trim().toLowerCase());
+  }
+
+  function productWhatsAppMetaRows(){
+    return [
+      {key:WHATSAPP_META_SHOW_DESCRIPTION,label:'',value:document.getElementById('flProdWhatsAppShowDescription')?.checked?'1':'0',unit:''},
+      {key:WHATSAPP_META_SHOW_SPECS,label:'',value:document.getElementById('flProdWhatsAppShowSpecs')?.checked?'1':'0',unit:''}
+    ];
+  }
 
   function normalizeSpecifications(raw){
     let rows=[];
@@ -128,6 +144,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     return rows.map((row,index)=>{
       if(!row || typeof row!=='object') return null;
       const key=String(row.key||`custom_${index+1}`).trim();
+      if(key===WHATSAPP_META_SHOW_DESCRIPTION || key===WHATSAPP_META_SHOW_SPECS) return null;
       const def=PRODUCT_SPEC_FIELDS.find(field=>field.key===key);
       const label=String(row.label||def?.label||key).trim();
       const value=String(row.value??'').trim();
@@ -158,7 +175,8 @@ window.FLOWER_LIGHT_SUPABASE = {
   function productSpecsFormHtml(prod){
     const specs=normalizeSpecifications(prod?.specifications);
     const rows=(specs.length?specs:[null]).map(spec=>productSpecEditorRowHtml(spec)).join('');
-    return `<div class="fl-product-spec-section full"><div class="fl-product-spec-head"><div><strong>المواصفات الفنية</strong><small>اكتب اسم الصفة وقيمتها بنفسك، مثل: القدرة — 30W. أضف فقط المواصفات التي تحتاجها.</small></div><button class="fl-cloud-btn fl-add-spec-btn" id="flAddProductSpec" type="button">+ إضافة صفة</button></div><div id="flFlexibleSpecs" class="fl-flex-spec-list">${rows}</div></div>`;
+    const showInWhatsApp=productWhatsAppOption(prod?.specifications,WHATSAPP_META_SHOW_SPECS);
+    return `<div class="fl-product-spec-section full"><div class="fl-product-spec-head"><div><div class="fl-field-label-inline"><strong>المواصفات الفنية</strong><label class="fl-whatsapp-include-toggle"><input id="flProdWhatsAppShowSpecs" type="checkbox" ${showInWhatsApp?'checked':''}><span>إظهار في رسالة واتساب</span></label></div><small>اكتب اسم الصفة وقيمتها بنفسك، مثل: القدرة — 30W. أضف فقط المواصفات التي تحتاجها.</small></div><button class="fl-cloud-btn fl-add-spec-btn" id="flAddProductSpec" type="button">+ إضافة صفة</button></div><div id="flFlexibleSpecs" class="fl-flex-spec-list">${rows}</div></div>`;
   }
 
   function collectProductSpecifications(){
@@ -174,7 +192,7 @@ window.FLOWER_LIGHT_SUPABASE = {
         unit:'',
       });
     });
-    return specs.slice(0,30);
+    return [...specs.slice(0,30),...productWhatsAppMetaRows()];
   }
 
   function imageUrl(path){
@@ -351,7 +369,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     }
   }
 
-  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=73',document.baseURI).href;
+  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=75',document.baseURI).href;
   function bundledSiteLogo(){
     return BUNDLED_SITE_LOGO;
   }
@@ -2130,7 +2148,11 @@ window.FLOWER_LIGHT_SUPABASE = {
         model:source.model||'',
         caption:source.caption||'',
         image_path:copiedPaths[0],
-        specifications:normalizeSpecifications(source.specifications),
+        specifications:[
+          ...normalizeSpecifications(source.specifications),
+          {key:WHATSAPP_META_SHOW_DESCRIPTION,label:'',value:productWhatsAppOption(source.specifications,WHATSAPP_META_SHOW_DESCRIPTION)?'1':'0',unit:''},
+          {key:WHATSAPP_META_SHOW_SPECS,label:'',value:productWhatsAppOption(source.specifications,WHATSAPP_META_SHOW_SPECS)?'1':'0',unit:''}
+        ],
         price:source.price==null?null:Number(source.price),
         wholesale_price:source.wholesale_price==null?null:Number(source.wholesale_price),
         wholesale_min_qty:source.wholesale_min_qty==null?null:Number(source.wholesale_min_qty),
@@ -2846,7 +2868,7 @@ window.FLOWER_LIGHT_SUPABASE = {
       <div class="fl-cloud-field"><label>الترتيب</label><input id="flProdSort" type="number" min="0" step="1" value="${defaultSort}"><small class="fl-field-help">يمكنك أيضًا تغييره لاحقًا بالسحب.</small></div>
       <div class="fl-cloud-field"><label>اسم المنتج</label><input id="flProdName" required value="${esc(prod?.name||'')}" placeholder="مثال: جدارية LED"></div>
       <div class="fl-cloud-field"><label>رقم المنتج / الكود</label><input id="flProdModel" value="${esc(prod?.model||'')}" placeholder="مثال: 1010 أو WL-205"></div>
-      <div class="fl-cloud-field full"><label>الوصف</label><textarea id="flProdCaption" placeholder="وصف مختصر">${esc(prod?.caption||'')}</textarea></div>
+      <div class="fl-cloud-field full"><div class="fl-field-label-inline"><label for="flProdCaption">الوصف</label><label class="fl-whatsapp-include-toggle"><input id="flProdWhatsAppShowDescription" type="checkbox" ${productWhatsAppOption(prod?.specifications,WHATSAPP_META_SHOW_DESCRIPTION)?'checked':''}><span>إظهار في رسالة واتساب</span></label></div><textarea id="flProdCaption" placeholder="وصف مختصر">${esc(prod?.caption||'')}</textarea></div>
       <section class="fl-pricing-editor full">
         <div class="fl-pricing-editor-head"><div><strong>الأسعار</strong><small>كل الحقول اختيارية. اكتب القطاعي والجملة وحدد أقل كمية تستحق سعر الجملة.</small></div></div>
         <div class="fl-pricing-editor-grid">

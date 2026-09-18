@@ -148,6 +148,16 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     bulb_count: 'عدد اللمبات'
   };
 
+  const WHATSAPP_META_SHOW_DESCRIPTION = '__whatsapp_show_description';
+  const WHATSAPP_META_SHOW_SPECS = '__whatsapp_show_specifications';
+
+  function productWhatsAppOption(raw, key) {
+    if (!Array.isArray(raw)) return false;
+    const row = raw.find(item => item && typeof item === 'object' && String(item.key || '').trim() === key);
+    if (!row) return false;
+    return ['1', 'true', 'yes', 'on'].includes(String(row.value ?? '').trim().toLowerCase());
+  }
+
   function normalizeProductSpecifications(raw) {
     let rows = [];
     if (Array.isArray(raw)) rows = raw;
@@ -157,6 +167,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     return rows.map((row, index) => {
       if (!row || typeof row !== 'object') return null;
       const key = String(row.key || `custom_${index + 1}`).trim();
+      if (key === WHATSAPP_META_SHOW_DESCRIPTION || key === WHATSAPP_META_SHOW_SPECS) return null;
       const label = String(row.label || PRODUCT_SPEC_LABELS[key] || key).trim();
       const value = String(row.value ?? '').trim();
       const unit = String(row.unit || '').trim();
@@ -351,15 +362,23 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
   function productWhatsAppMessage(item) {
     const profile = window.FLOWER_LIGHT_PROFILE || {};
     const brand = profile.brand_name || profile.company_name || '';
+    const name = String(item?.name || productDisplayName(item) || '').trim();
+    const model = String(item?.model || '').trim();
+    const description = String(item?.caption || '').trim();
     const lines = [
-      brand ? `السلام عليكم، أريد الاستفسار عن منتج من ${brand}:` : 'السلام عليكم، أريد الاستفسار عن منتج:',
-      `المنتج: ${productDisplayName(item)}`
+      brand ? `السلام عليكم، أريد الاستفسار عن منتج من ${brand}:` : 'السلام عليكم، أريد الاستفسار عن منتج:'
     ];
-    if (item?.model) lines.push(`رقم المنتج / الكود: ${item.model}`);
-    const specLines = productSpecsText(item, 30);
-    if (specLines.length) {
-      lines.push('المواصفات:');
-      specLines.forEach(line => lines.push(`• ${line}`));
+    if (name) lines.push(`اسم المنتج: ${name}`);
+    if (model) lines.push(`رقم المنتج / الكود: ${model}`);
+    const showDescription = productWhatsAppOption(item?.specifications, WHATSAPP_META_SHOW_DESCRIPTION);
+    if (showDescription && description) lines.push(`الوصف: ${description}`);
+    const showSpecs = productWhatsAppOption(item?.specifications, WHATSAPP_META_SHOW_SPECS);
+    if (showSpecs) {
+      const specLines = productSpecsText(item, 30);
+      if (specLines.length) {
+        lines.push('المواصفات الفنية:');
+        specLines.forEach(line => lines.push(`• ${line}`));
+      }
     }
     lines.push('هل يمكن تزويدي بالتفاصيل والسعر؟');
     return lines.join('\n');
@@ -761,7 +780,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const shareButton = createProductShareButton(item);
     const actions = document.createElement('div');
     actions.className = 'product-card-actions';
-    actions.append(pdfButton, whatsappLink, shareButton);
+    actions.append(pdfButton, shareButton, whatsappLink);
     figure.appendChild(actions);
     return figure;
   }
@@ -1437,7 +1456,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
 
   async function loadCompanyLogoImage() {
     if (window.__flCompanyLogoPromise) return window.__flCompanyLogoPromise;
-    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.png?v=73').catch(() => null);
+    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.png?v=75').catch(() => null);
     return window.__flCompanyLogoPromise;
   }
 

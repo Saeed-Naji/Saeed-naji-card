@@ -1616,3 +1616,60 @@
 .fl-lead-search-form .fl-cloud-btn{min-width:130px}.fl-lead-search-form .fl-cloud-btn.secondary{min-width:120px}
 @media(max-width:760px){.fl-lead-toolbar{display:grid;grid-template-columns:1fr;gap:12px}.fl-lead-toolbar-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.fl-lead-toolbar-actions .fl-cloud-btn{min-width:0;width:100%}.fl-lead-search-form{grid-template-columns:1fr 1fr}.fl-lead-search-input-wrap{grid-column:1/-1}.fl-lead-search-form .fl-cloud-btn{min-width:0;width:100%}}
 @media(max-width:390px){.fl-lead-toolbar-actions,.fl-lead-search-form{grid-template-columns:1fr}.fl-lead-search-input-wrap{grid-column:auto}}
+
+/* ===== STAGE74: primary product actions — two tools above, full-width WhatsApp below ===== */
+.product-card-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+.product-card-actions .product-download-pdf-button{
+  grid-column:1!important;
+}
+.product-card-actions .product-share-button{
+  grid-column:2!important;
+}
+.product-card-actions .product-whatsapp-button{
+  grid-column:1/-1!important;
+  width:100%!important;
+  min-height:48px!important;
+  margin:0!important;
+  font-size:13px!important;
+}
+
+.image-lightbox-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+.image-lightbox-actions .image-lightbox-download-pdf{
+  grid-column:1!important;
+}
+.image-lightbox-actions .image-lightbox-share{
+  grid-column:2!important;
+}
+.image-lightbox-actions .image-lightbox-catalog-pdf{
+  grid-column:1/-1!important;
+}
+.image-lightbox-actions .image-lightbox-whatsapp{
+  grid-column:1/-1!important;
+  width:100%!important;
+  min-height:48px!important;
+  margin:0!important;
+  font-size:13px!important;
+}
+.image-lightbox-actions .image-lightbox-catalog-pdf[hidden]{display:none!important}
+
+@media(max-width:600px){
+  .product-card-actions .product-whatsapp-button,
+  .image-lightbox-actions .image-lightbox-whatsapp{
+    min-height:46px!important;
+    font-size:12px!important;
+  }
+}
+
+
+/* STAGE76 — per-product WhatsApp message visibility controls */
+.fl-field-label-inline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.fl-whatsapp-include-toggle{display:inline-flex!important;align-items:center;gap:7px;padding:6px 10px;border:1px solid rgba(37,211,102,.32);border-radius:999px;background:rgba(37,211,102,.08);color:#168a43!important;font-size:12px!important;font-weight:800!important;line-height:1.2;cursor:pointer;white-space:nowrap}
+.fl-whatsapp-include-toggle input{width:16px!important;height:16px!important;min-width:16px;margin:0!important;accent-color:#25d366;cursor:pointer}
+.fl-whatsapp-include-toggle span{display:inline-block}
+@media(max-width:640px){.fl-field-label-inline{align-items:flex-start}.fl-whatsapp-include-toggle{white-space:normal}}
