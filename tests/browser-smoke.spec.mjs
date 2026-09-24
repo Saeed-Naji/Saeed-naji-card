@@ -220,10 +220,10 @@ test('design footer label and number replace website URL and hide when empty',as
     }finally{CanvasRenderingContext2D.prototype.fillText=original;}
   });
   expect(result.withNumber).toContain('+966500001111');
-  expect(result.withNumber).toContain('رقم التواصل');
+  expect(result.withNumber).toContain('مندوب الجملة');
   expect(result.withNumber.some(text=>text.includes('saeed-naji.github.io'))).toBeFalsy();
   expect(result.withoutNumber).not.toContain('+966500001111');
-  expect(result.withoutNumber).not.toContain('رقم التواصل');
+  expect(result.withoutNumber).not.toContain('مندوب الجملة');
 });
 
 test('admin routes are isolated and noindex',async({page})=>{
