@@ -1,4 +1,4 @@
-name: STAGE87 browser smoke
+name: STAGE88 browser smoke
 
 on:
   push:
