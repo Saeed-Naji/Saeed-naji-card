@@ -1,0 +1,12 @@
+{
+  "name": "flower-light-site-checks",
+  "private": true,
+  "version": "84.0.0",
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  },
+  "scripts": {
+    "test:browser": "playwright test --config=playwright.config.mjs",
+    "test:static": "node tests/smoke.mjs"
+  }
+}
