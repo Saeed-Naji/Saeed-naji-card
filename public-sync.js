@@ -1,4 +1,4 @@
-// Flower Light Supabase public sync — STAGE84.
+// Flower Light Supabase public sync — STAGE88.
 // ?admin=1 requires the Owner role; ?admin=2 requires the linked Sub-admin role.
 // Permissions are enforced in both this interface and Supabase RLS/RPC policies.
 
@@ -349,7 +349,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     }
   }
 
-  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=75',document.baseURI).href;
+  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=88',document.baseURI).href;
   function bundledSiteLogo(){
     return BUNDLED_SITE_LOGO;
   }
@@ -465,12 +465,19 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   let publicSiteSettingsPromise=Promise.resolve(false);
   async function loadPublicSiteSettings(){
-    const fallback={require_customer_lead:true};
+    const fallback={require_customer_lead:true,master_barcode_path:'',master_barcode_url:'',design_footer_number:'',design_footer_label:''};
     if(!db){window.FLOWER_LIGHT_SITE_SETTINGS=fallback;return false;}
     try{
-      const {data,error}=await db.from('site_settings').select('require_customer_lead').eq('id',1).maybeSingle();
+      const {data,error}=await db.from('site_settings').select('require_customer_lead,master_barcode_path,design_footer_number,design_footer_label').eq('id',1).maybeSingle();
       if(error)throw error;
-      window.FLOWER_LIGHT_SITE_SETTINGS={require_customer_lead:data?.require_customer_lead!==false};
+      const masterBarcodePath=String(data?.master_barcode_path||'').trim();
+      window.FLOWER_LIGHT_SITE_SETTINGS={
+        require_customer_lead:data?.require_customer_lead!==false,
+        master_barcode_path:masterBarcodePath,
+        master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):'',
+        design_footer_number:String(data?.design_footer_number||'').trim(),
+        design_footer_label:String(data?.design_footer_label||'').trim()
+      };
       return true;
     }catch(err){
       console.warn('[Site settings] load failed; customer lead gate remains enabled for safety.',err);
@@ -657,7 +664,7 @@ window.FLOWER_LIGHT_SUPABASE = {
   window.FLOWER_LIGHT_CONTACTS = [];
   window.FLOWER_LIGHT_SITE_CATALOGS = [];
   window.FLOWER_LIGHT_SITE_CATALOG = {};
-  window.FLOWER_LIGHT_SITE_SETTINGS = { require_customer_lead: true };
+  window.FLOWER_LIGHT_SITE_SETTINGS = { require_customer_lead: true, master_barcode_path: '', master_barcode_url: '', design_footer_number: '', design_footer_label: '' };
   window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extraSections: [] };
   renderPublicProfile();
   if (db) { publicSiteSettingsPromise=loadPublicSiteSettings(); loadPublicProfile(); loadPublicSiteCatalog(); loadCloudProducts(); }

@@ -1540,13 +1540,65 @@
 .fl-price-tier-remove:hover{background:#fff0f0}
 .product-price-row.is-bulk strong{color:#6a4b9a}
 
+
+/* ===== STAGE88 laptop responsive fixes ===== */
+/* Product editor: the previous 650px dialog was narrower than the price-tier grid on laptops. */
+.fl-cloud-dialog.fl-product-dialog{
+  width:min(980px,calc(100vw - 32px));
+  max-width:980px;
+  box-sizing:border-box;
+  overflow-x:hidden;
+}
+.fl-cloud-dialog.fl-product-dialog .fl-cloud-form,
+.fl-cloud-dialog.fl-product-dialog .fl-pricing-editor,
+.fl-cloud-dialog.fl-product-dialog .fl-product-spec-section,
+.fl-cloud-dialog.fl-product-dialog .fl-product-gallery-editor,
+.fl-cloud-dialog.fl-product-dialog .fl-price-tier-row{
+  min-width:0;
+}
+
+/* Lightbox: top-align scrollable content so tall product details never push the image above the viewport. */
+.image-lightbox{
+  align-items:flex-start!important;
+  justify-content:center!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  scroll-padding-top:18px;
+}
+.image-lightbox-dialog{
+  flex:0 0 auto!important;
+  margin:0!important;
+  padding-top:10px!important;
+  padding-bottom:18px!important;
+  box-sizing:border-box!important;
+}
+.image-lightbox-stage{
+  flex:0 0 auto!important;
+}
+.image-lightbox-stage img,
+#imageLightboxImage{
+  flex:0 0 auto!important;
+}
+
 /* ===== Consolidated responsive architecture =====
    Canonical width breakpoints:
    - Mobile / tablet: up to 760px
    - Small phones: up to 430px
    - Desktop: 761px and wider
 */
+
+/* STAGE88: global master barcode setting */
+.fl-master-barcode-card{display:grid;gap:14px;margin-bottom:16px;border-color:#f2d7a8;background:linear-gradient(135deg,#fff 0%,#fffaf0 100%)}
+.fl-master-barcode-card>p{margin:0;color:#667085;line-height:1.75;font-size:13px}
+.fl-master-barcode-editor{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:18px;align-items:center}
+.fl-master-barcode-preview{min-height:132px;border:1px dashed #d7c39e;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;padding:12px;overflow:hidden}
+.fl-master-barcode-preview img{display:block;max-width:100%;max-height:118px;width:auto;height:auto;object-fit:contain;background:#fff}
+.fl-master-barcode-empty{color:#8b8173;font-size:13px;text-align:center;line-height:1.6}
+.fl-master-barcode-controls{display:grid;gap:12px;min-width:0}.fl-master-barcode-controls .fl-cloud-field{margin:0}
+
 @media (max-width: 760px) {
+  .fl-master-barcode-editor{grid-template-columns:1fr}
+  .fl-master-barcode-preview{min-height:118px}
   .image-lightbox{padding:10px}
         .image-lightbox-dialog{max-height:calc(100dvh - 20px)}
         .image-lightbox-stage img{max-height:calc(100dvh - 180px);border-radius:12px}
@@ -1771,3 +1823,9 @@
 .fl-lead-gate-settings-card{display:grid;gap:14px}
 .fl-lead-gate-settings-card>p{margin:0;color:#667085;line-height:1.75;font-size:13px}
 .fl-lead-gate-settings-card .fl-cloud-actions{margin-top:0}
+
+
+/* STAGE88: Owner-managed number shown instead of website URL in export footer */
+.fl-design-footer-number-card{display:grid;gap:14px;margin-bottom:16px;border-color:#f2d7a8;background:linear-gradient(135deg,#fff 0%,#fffaf0 100%)}
+.fl-design-footer-number-card>p{margin:0;color:#667085;line-height:1.75;font-size:13px}
+.fl-design-footer-number-card .fl-cloud-field{margin:0}

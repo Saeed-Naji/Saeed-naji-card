@@ -1,7 +1,7 @@
 {
   "name": "flower-light-site-checks",
   "private": true,
-  "version": "84.0.0",
+  "version": "87.0.0",
   "devDependencies": {
     "@playwright/test": "1.55.0"
   },

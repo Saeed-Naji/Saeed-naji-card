@@ -1,4 +1,4 @@
-// Flower Light Supabase admin controller — STAGE84.
+// Flower Light Supabase admin controller — STAGE88.
 // ?admin=1 requires the Owner role; ?admin=2 requires the linked Sub-admin role.
 // Permissions are enforced in both this interface and Supabase RLS/RPC policies.
 
@@ -486,7 +486,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     }
   }
 
-  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=75',document.baseURI).href;
+  const BUNDLED_SITE_LOGO=new URL('company-logo.png?v=88',document.baseURI).href;
   function bundledSiteLogo(){
     return BUNDLED_SITE_LOGO;
   }
@@ -601,12 +601,17 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   let publicSiteSettingsPromise=Promise.resolve(false);
   async function loadPublicSiteSettings(){
-    const fallback={require_customer_lead:true};
+    const fallback={require_customer_lead:true,master_barcode_path:'',master_barcode_url:'',design_footer_number:'',design_footer_label:''};
     if(!db){window.FLOWER_LIGHT_SITE_SETTINGS=fallback;return false;}
     try{
-      const {data,error}=await db.from('site_settings').select('require_customer_lead').eq('id',1).maybeSingle();
+      const {data,error}=await db.from('site_settings').select('require_customer_lead,master_barcode_path,design_footer_number,design_footer_label').eq('id',1).maybeSingle();
       if(error)throw error;
-      window.FLOWER_LIGHT_SITE_SETTINGS={require_customer_lead:data?.require_customer_lead!==false};
+      const masterBarcodePath=String(data?.master_barcode_path||'').trim();
+      window.FLOWER_LIGHT_SITE_SETTINGS={
+        require_customer_lead:data?.require_customer_lead!==false,
+        master_barcode_path:masterBarcodePath,
+        master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):''
+      };
       return true;
     }catch(err){
       console.warn('[Site settings] load failed; customer lead gate remains enabled for safety.',err);
@@ -793,7 +798,7 @@ window.FLOWER_LIGHT_SUPABASE = {
   window.FLOWER_LIGHT_CONTACTS = [];
   window.FLOWER_LIGHT_SITE_CATALOGS = [];
   window.FLOWER_LIGHT_SITE_CATALOG = {};
-  window.FLOWER_LIGHT_SITE_SETTINGS = { require_customer_lead: true };
+  window.FLOWER_LIGHT_SITE_SETTINGS = { require_customer_lead: true, master_barcode_path: '', master_barcode_url: '', design_footer_number: '', design_footer_label: '' };
   window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extraSections: [] };
   renderPublicProfile();
   if (db) { publicSiteSettingsPromise=loadPublicSiteSettings(); loadPublicProfile(); loadPublicSiteCatalog(); loadCloudProducts(); }
@@ -902,6 +907,11 @@ window.FLOWER_LIGHT_SUPABASE = {
   let view='overview'; let categories=[]; let products=[]; let productImages=[]; let siteCatalogs=[]; let profile={}; let contacts=[]; let leads=[]; let selectedCategory=''; let selectedProductNode=''; let analyticsPeriod=30; let cloudNavScrollLeft=0;
   let customerLeadGateEnabled=window.FLOWER_LIGHT_SITE_SETTINGS?.require_customer_lead!==false;
   let customerLeadGateSettingError='';
+  let masterBarcodePath=String(window.FLOWER_LIGHT_SITE_SETTINGS?.master_barcode_path||'').trim();
+  let masterBarcodeSettingError='';
+  let designFooterNumber=String(window.FLOWER_LIGHT_SITE_SETTINGS?.design_footer_number||'').trim();
+  let designFooterLabel=String(window.FLOWER_LIGHT_SITE_SETTINGS?.design_footer_label||'').trim();
+  let designFooterNumberSettingError='';
   let passwordRecoveryMode=/(?:^|[#&?])type=recovery(?:&|$)/i.test(`${location.search}${location.hash}`);
   const LEADS_PAGE_SIZE=100;
   let leadsTotalCount=0;
@@ -937,7 +947,13 @@ window.FLOWER_LIGHT_SUPABASE = {
   const normalizeAdminView = candidate => allowedAdminViews().has(candidate) ? candidate : 'overview';
   let toastTimer;
   const notify = msg => { toast.textContent=msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),2600); };
-  const openModal = (title, html) => { modalTitle.textContent=title; modalBody.innerHTML=html; modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); };
+  const openModal = (title, html) => {
+    modal.querySelector('.fl-cloud-dialog')?.classList.remove('fl-product-dialog');
+    modalTitle.textContent=title;
+    modalBody.innerHTML=html;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+  };
   const closeModal = () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); modalBody.innerHTML=''; };
   document.getElementById('flCloudModalClose').addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
@@ -968,7 +984,7 @@ window.FLOWER_LIGHT_SUPABASE = {
 
   async function loadCurrentAdminAccess(){
     const {data,error}=await db.rpc('get_current_admin_access');
-    if(error)throw new Error((String(error.code)==='PGRST202'||String(error.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase أولًا.' : (error.message||error));
+    if(error)throw new Error((String(error.code)==='PGRST202'||String(error.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE88.sql في Supabase أولًا.' : (error.message||error));
     currentAdminRole=String(data?.role||'');
     currentAdminEmail=String(data?.email||'');
     currentAdminPermissions=new Set(normalizePermissionList(data));
@@ -1166,14 +1182,30 @@ window.FLOWER_LIGHT_SUPABASE = {
   async function loadCustomerLeadGateAdminSetting(){
     if(!isPrimaryAdmin)return;
     customerLeadGateSettingError='';
+    masterBarcodeSettingError='';
+    designFooterNumberSettingError='';
     try{
-      const {data,error}=await db.from('site_settings').select('require_customer_lead').eq('id',1).maybeSingle();
+      const {data,error}=await db.from('site_settings').select('require_customer_lead,master_barcode_path,design_footer_number,design_footer_label').eq('id',1).maybeSingle();
       if(error)throw error;
       customerLeadGateEnabled=data?.require_customer_lead!==false;
-      window.FLOWER_LIGHT_SITE_SETTINGS={require_customer_lead:customerLeadGateEnabled};
+      masterBarcodePath=String(data?.master_barcode_path||'').trim();
+      designFooterNumber=String(data?.design_footer_number||'').trim();
+      designFooterLabel=String(data?.design_footer_label||'').trim();
+      window.FLOWER_LIGHT_SITE_SETTINGS={
+        require_customer_lead:customerLeadGateEnabled,
+        master_barcode_path:masterBarcodePath,
+        master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):'',
+        design_footer_number:designFooterNumber,
+        design_footer_label:designFooterLabel
+      };
     }catch(error){
       customerLeadGateEnabled=true;
-      customerLeadGateSettingError=String(error?.message||error||'');
+      masterBarcodePath='';
+      designFooterNumber='';
+      const message=String(error?.message||error||'');
+      customerLeadGateSettingError=message;
+      masterBarcodeSettingError=message;
+      designFooterNumberSettingError=message;
     }
   }
 
@@ -1332,13 +1364,37 @@ window.FLOWER_LIGHT_SUPABASE = {
     const leadGateCard=isPrimaryAdmin?`<form id="flCustomerLeadGateSettingsForm" class="fl-cloud-card fl-lead-gate-settings-card">
       <div class="fl-credentials-card-head"><div><span class="fl-account-badge owner">دخول المنتجات</span><h3>طلب بيانات العميل قبل عرض المنتجات</h3></div></div>
       <p>تحكم من هنا في ظهور نموذج الاسم ورقم الجوال للعميل عند فتح قسم المنتجات.</p>
-      ${customerLeadGateSettingError?`<div class="fl-cloud-note bad">تعذر قراءة الإعداد. شغّل <b>FINAL_SQL_STAGE84.sql</b> في Supabase مرة واحدة ثم أعد تحميل الصفحة.</div>`:''}
+      ${customerLeadGateSettingError?`<div class="fl-cloud-note bad">تعذر قراءة الإعداد. شغّل <b>FINAL_SQL_STAGE88.sql</b> في Supabase مرة واحدة ثم أعد تحميل الصفحة.</div>`:''}
       <label class="fl-permission-row fl-lead-gate-setting-row">
         <span class="fl-permission-copy"><strong>طلب الاسم ورقم الجوال</strong><small>${customerLeadGateEnabled?'مفعّل الآن: سيُطلب من العميل إدخال بياناته مرة واحدة قبل فتح المنتجات.':'متوقف الآن: سيدخل العميل إلى المنتجات مباشرة بدون طلب الاسم أو رقم الجوال.'}</small></span>
         <input id="flRequireCustomerLead" type="checkbox" ${customerLeadGateEnabled?'checked':''} ${customerLeadGateSettingError?'disabled':''}>
         <span class="fl-permission-check" aria-hidden="true">✓</span>
       </label>
       <div class="fl-cloud-actions"><button class="fl-cloud-btn primary" id="flCustomerLeadGateSave" type="submit" ${customerLeadGateSettingError?'disabled':''}>حفظ الإعداد</button></div>
+    </form>`:'';
+    const barcodePreviewUrl=masterBarcodePath?imageUrl(masterBarcodePath):'';
+    const masterBarcodeCard=isPrimaryAdmin?`<form id="flMasterBarcodeSettingsForm" class="fl-cloud-card fl-master-barcode-card">
+      <div class="fl-credentials-card-head"><div><span class="fl-account-badge owner">قالب المنتجات</span><h3>الباركود الرئيسي</h3></div></div>
+      <p>ارفع باركودًا واحدًا للموقع. عند وجوده سيظهر تلقائيًا في القالب المعتمد للداتا شيت وصور/PDF المنتجات والأقسام. إذا لم تضف باركودًا فلن يظهر شيء.</p>
+      ${masterBarcodeSettingError?`<div class="fl-cloud-note bad">تعذر قراءة إعداد الباركود. شغّل <b>FINAL_SQL_STAGE88.sql</b> في Supabase مرة واحدة ثم أعد تحميل الصفحة.</div>`:''}
+      <div class="fl-master-barcode-editor">
+        <div class="fl-master-barcode-preview" id="flMasterBarcodePreviewWrap" ${barcodePreviewUrl?'':'data-empty="true"'}>
+          ${barcodePreviewUrl?`<img id="flMasterBarcodePreview" src="${esc(barcodePreviewUrl)}" alt="معاينة الباركود الرئيسي">`:`<div id="flMasterBarcodeEmpty" class="fl-master-barcode-empty">لا يوجد باركود رئيسي حاليًا</div><img id="flMasterBarcodePreview" alt="معاينة الباركود الرئيسي" hidden>`}
+        </div>
+        <div class="fl-master-barcode-controls">
+          <label class="fl-cloud-field"><span>صورة الباركود</span><input id="flMasterBarcodeFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" ${masterBarcodeSettingError?'disabled':''}><small>يفضل PNG أو JPG واضح بخلفية بيضاء. الحد الأقصى 5 MB.</small></label>
+          ${masterBarcodePath?'<label class="fl-cloud-check"><input id="flRemoveMasterBarcode" type="checkbox"> حذف الباركود الحالي</label>':''}
+        </div>
+      </div>
+      <div class="fl-cloud-actions"><button class="fl-cloud-btn primary" id="flMasterBarcodeSave" type="submit" ${masterBarcodeSettingError?'disabled':''}>حفظ الباركود</button></div>
+    </form>`:'';
+    const designFooterNumberCard=isPrimaryAdmin?`<form id="flDesignFooterNumberSettingsForm" class="fl-cloud-card fl-design-footer-number-card">
+      <div class="fl-credentials-card-head"><div><span class="fl-account-badge owner">قالب المنتجات</span><h3>رقم التذييل في التصاميم</h3></div></div>
+      <p>يمكنك تحديد تسمية لهذا الرقم مثل "مندوب الجملة" أو "خدمة العملاء" مع الرقم نفسه. سيظهران بدل رابط الموقع الإلكتروني في أسفل القالب المعتمد للداتا شيت وصور/PDF المنتجات والأقسام. إذا تركت الرقم فارغًا فلن يظهر شيء في هذا الموضع.</p>
+      ${designFooterNumberSettingError?`<div class="fl-cloud-note bad">تعذر قراءة إعداد رقم التذييل. شغّل <b>FINAL_SQL_STAGE88.sql</b> في Supabase مرة واحدة ثم أعد تحميل الصفحة.</div>`:''}
+      <label class="fl-cloud-field"><span>التسمية التي تظهر فوق الرقم</span><input id="flDesignFooterLabel" type="text" maxlength="40" value="${esc(designFooterLabel)}" placeholder="مثال: مندوب الجملة أو خدمة العملاء" ${designFooterNumberSettingError?'disabled':''}><small>اختياري. إذا تركته فارغًا سيظهر الرقم فقط بعنوان افتراضي.</small></label>
+      <label class="fl-cloud-field"><span>الرقم الذي يظهر في التذييل</span><input id="flDesignFooterNumber" type="text" inputmode="tel" dir="ltr" maxlength="40" value="${esc(designFooterNumber)}" placeholder="مثال: 0501234567 أو +966501234567" ${designFooterNumberSettingError?'disabled':''}><small>يمكن أن يكون رقم جوال أو رقمًا موحدًا. ترك الحقل فارغًا يخفي هذا الجزء من التذييل بالكامل.</small></label>
+      <div class="fl-cloud-actions"><button class="fl-cloud-btn primary" id="flDesignFooterNumberSave" type="submit" ${designFooterNumberSettingError?'disabled':''}>حفظ البيانات</button></div>
     </form>`:'';
     const recoveryCard=isPrimaryAdmin?`<form id="flPrimaryRecoverySettingsForm" class="fl-cloud-card fl-primary-recovery-card">
       <div class="fl-credentials-card-head"><div><span class="fl-account-badge recovery">البريد الأساسي</span><h3>البريد الأساسي للاستعادة</h3></div></div>
@@ -1349,6 +1405,8 @@ window.FLOWER_LIGHT_SUPABASE = {
     </form>`:'';
     layout(`<div class="fl-cloud-head"><div><h2>${isPrimaryAdmin?'إدارة الموقع بالكامل':'لوحة الأدمن'}</h2>${isPrimaryAdmin?'<p>جميع أجزاء الموقع متاحة لك، بما فيها الأقسام والمنتجات وتحديد صلاحيات الأدمن.</p>':''}</div></div>
       ${leadGateCard}
+      ${masterBarcodeCard}
+      ${designFooterNumberCard}
       ${recoveryCard}
       ${statsHtml}
       <div class="fl-cloud-note ok">الحساب الحالي: <b dir="ltr">${esc(currentAdminEmail)}</b> · ${isPrimaryAdmin?'المدير':'الأدمن'}</div>
@@ -1367,12 +1425,78 @@ window.FLOWER_LIGHT_SUPABASE = {
         if(error)throw error;
         customerLeadGateEnabled=enabled;
         customerLeadGateSettingError='';
-        window.FLOWER_LIGHT_SITE_SETTINGS={require_customer_lead:enabled};
+        window.FLOWER_LIGHT_SITE_SETTINGS={...(window.FLOWER_LIGHT_SITE_SETTINGS||{}),require_customer_lead:enabled,master_barcode_path:masterBarcodePath,master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):'',design_footer_number:designFooterNumber,design_footer_label:designFooterLabel};
         notify(enabled?'تم تفعيل طلب بيانات العميل قبل المنتجات':'تم إيقاف طلب البيانات؛ العميل سيدخل المنتجات مباشرة');
         renderOverview();
       }catch(error){
-        notify(/42P01|PGRST205/i.test(String(error?.code||''))?'شغّل FINAL_SQL_STAGE84.sql في Supabase أولًا.':'تعذر حفظ الإعداد: '+(error?.message||error));
+        notify(/42P01|PGRST205/i.test(String(error?.code||''))?'شغّل FINAL_SQL_STAGE88.sql في Supabase أولًا.':'تعذر حفظ الإعداد: '+(error?.message||error));
         save.disabled=false;save.textContent='حفظ الإعداد';
+      }
+    });
+
+    const barcodeFileInput=document.getElementById('flMasterBarcodeFile');
+    const barcodePreview=document.getElementById('flMasterBarcodePreview');
+    const barcodeEmpty=document.getElementById('flMasterBarcodeEmpty');
+    let barcodePreviewObjectUrl='';
+    barcodeFileInput?.addEventListener('change',()=>{
+      if(barcodePreviewObjectUrl){URL.revokeObjectURL(barcodePreviewObjectUrl);barcodePreviewObjectUrl='';}
+      const file=barcodeFileInput.files?.[0];
+      if(!file)return;
+      barcodePreviewObjectUrl=URL.createObjectURL(file);
+      if(barcodePreview){barcodePreview.src=barcodePreviewObjectUrl;barcodePreview.hidden=false;}
+      if(barcodeEmpty)barcodeEmpty.hidden=true;
+    });
+    document.getElementById('flMasterBarcodeSettingsForm')?.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const save=document.getElementById('flMasterBarcodeSave');
+      if(!save)return;
+      const file=barcodeFileInput?.files?.[0]||null;
+      const remove=Boolean(document.getElementById('flRemoveMasterBarcode')?.checked);
+      if(!file&&!remove&&!masterBarcodePath){notify('اختر صورة باركود أولًا');return;}
+      save.disabled=true;save.textContent='جاري الحفظ...';
+      const oldPath=masterBarcodePath;
+      let uploadedPath='';
+      try{
+        let nextPath=oldPath;
+        if(remove)nextPath='';
+        if(file){uploadedPath=await uploadMasterBarcodeFile(file);nextPath=uploadedPath;}
+        const {error}=await db.from('site_settings').upsert({id:1,master_barcode_path:nextPath},{onConflict:'id'});
+        if(error)throw error;
+        masterBarcodePath=nextPath;
+        masterBarcodeSettingError='';
+        window.FLOWER_LIGHT_SITE_SETTINGS={...(window.FLOWER_LIGHT_SITE_SETTINGS||{}),require_customer_lead:customerLeadGateEnabled,master_barcode_path:masterBarcodePath,master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):'',design_footer_number:designFooterNumber,design_footer_label:designFooterLabel};
+        if(oldPath&&oldPath!==masterBarcodePath&&isStoragePath(oldPath))await db.storage.from(bucket).remove([oldPath]);
+        notify(masterBarcodePath?'تم حفظ الباركود الرئيسي وسيظهر في القوالب':'تم حذف الباركود الرئيسي من القوالب');
+        if(barcodePreviewObjectUrl){URL.revokeObjectURL(barcodePreviewObjectUrl);barcodePreviewObjectUrl='';}
+        renderOverview();
+      }catch(error){
+        if(uploadedPath&&uploadedPath!==oldPath)await db.storage.from(bucket).remove([uploadedPath]);
+        notify(/42703|PGRST204|PGRST205|42P01/i.test(String(error?.code||''))?'شغّل FINAL_SQL_STAGE88.sql في Supabase أولًا.':'تعذر حفظ الباركود: '+(error?.message||error));
+        save.disabled=false;save.textContent='حفظ الباركود';
+      }
+    });
+
+    document.getElementById('flDesignFooterNumberSettingsForm')?.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const input=document.getElementById('flDesignFooterNumber');
+      const labelInput=document.getElementById('flDesignFooterLabel');
+      const save=document.getElementById('flDesignFooterNumberSave');
+      if(!input||!save)return;
+      const next=String(input.value||'').trim().slice(0,40);
+      const nextLabel=String(labelInput?.value||'').trim().slice(0,40);
+      save.disabled=true;save.textContent='جاري الحفظ...';
+      try{
+        const {error}=await db.from('site_settings').upsert({id:1,design_footer_number:next,design_footer_label:nextLabel},{onConflict:'id'});
+        if(error)throw error;
+        designFooterNumber=next;
+        designFooterLabel=nextLabel;
+        designFooterNumberSettingError='';
+        window.FLOWER_LIGHT_SITE_SETTINGS={...(window.FLOWER_LIGHT_SITE_SETTINGS||{}),require_customer_lead:customerLeadGateEnabled,master_barcode_path:masterBarcodePath,master_barcode_url:masterBarcodePath?imageUrl(masterBarcodePath):'',design_footer_number:designFooterNumber,design_footer_label:designFooterLabel};
+        notify(designFooterNumber?'تم حفظ رقم التذييل وسيظهر بدل رابط الموقع في التصاميم':'تم إخفاء رقم التذييل من التصاميم');
+        renderOverview();
+      }catch(error){
+        notify(/42703|PGRST204|PGRST205|42P01/i.test(String(error?.code||''))?'شغّل FINAL_SQL_STAGE88.sql في Supabase أولًا.':'تعذر حفظ رقم التذييل: '+(error?.message||error));
+        save.disabled=false;save.textContent='حفظ الرقم';
       }
     });
 
@@ -1672,7 +1796,7 @@ window.FLOWER_LIGHT_SUPABASE = {
     const {data,error}=await db.rpc('get_site_analytics_for_admin',{p_days:analyticsPeriod});
     if(view!=='analytics')return;
     if(error){
-      layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>الزيارات والتفاعل مع الموقع.</p></div></div><div class="fl-cloud-note bad">تعذر تحميل الإحصائيات. شغّل ملف <b>FINAL_SQL_STAGE84.sql</b> في Supabase مرة واحدة ثم أعد المحاولة.<br><small>${esc(error.message||'')}</small></div>`);
+      layout(`<div class="fl-cloud-head"><div><h2>إحصائيات الموقع</h2><p>الزيارات والتفاعل مع الموقع.</p></div></div><div class="fl-cloud-note bad">تعذر تحميل الإحصائيات. شغّل ملف <b>FINAL_SQL_STAGE88.sql</b> في Supabase مرة واحدة ثم أعد المحاولة.<br><small>${esc(error.message||'')}</small></div>`);
       return;
     }
     const a=data||{};
@@ -1719,8 +1843,8 @@ window.FLOWER_LIGHT_SUPABASE = {
         console.warn('[Analytics reset] failed',err);
         const resetMessage=String(err?.message||'');
         notify(/DELETE requires a WHERE clause/i.test(resetMessage)
-          ? 'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase مرة واحدة، ثم أعد المحاولة.'
-          : (resetMessage||'تعذر إعادة تعيين الإحصائيات. شغّل ملف FINAL_SQL_STAGE84.sql في Supabase ثم حاول مجددًا.'));
+          ? 'شغّل ملف FINAL_SQL_STAGE88.sql في Supabase مرة واحدة، ثم أعد المحاولة.'
+          : (resetMessage||'تعذر إعادة تعيين الإحصائيات. شغّل ملف FINAL_SQL_STAGE88.sql في Supabase ثم حاول مجددًا.'));
         if(resetBtn){resetBtn.disabled=false;resetBtn.textContent='إعادة تعيين الإحصائيات';}
       }
     });
@@ -1756,7 +1880,7 @@ window.FLOWER_LIGHT_SUPABASE = {
       const {data,error}=await db.rpc('get_datasheet_settings');
       if(error){
         const missing=String(error.code)==='PGRST202'||String(error.code)==='42883'||String(error.code)==='42703';
-        throw new Error(missing?'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase أولًا.':(error.message||error));
+        throw new Error(missing?'شغّل ملف FINAL_SQL_STAGE88.sql في Supabase أولًا.':(error.message||error));
       }
       datasheetFields=normalizeDatasheetFields(data);
       return datasheetFields;
@@ -1883,7 +2007,7 @@ window.FLOWER_LIGHT_SUPABASE = {
         const {data,error}=await db.rpc('owner_set_datasheet_fields',{p_fields:fields});
         if(error){
           const missing=String(error.code)==='PGRST202'||String(error.code)==='42883'||String(error.code)==='42703';
-          throw new Error(missing?'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase أولًا.':(error.message||error));
+          throw new Error(missing?'شغّل ملف FINAL_SQL_STAGE88.sql في Supabase أولًا.':(error.message||error));
         }
         datasheetFields=normalizeDatasheetFields(data);
         renderDatasheetDesigner();
@@ -2258,7 +2382,7 @@ window.FLOWER_LIGHT_SUPABASE = {
   async function saveProductOrder(productIds){
     if(!productIds.length) return;
     const {error}=await db.rpc('reorder_products_for_admin',{p_product_ids:productIds});
-    if(error) throw new Error((String(error.code)==='PGRST202'||String(error.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE84.sql أولًا ثم أعد المحاولة.' : (error.message||error));
+    if(error) throw new Error((String(error.code)==='PGRST202'||String(error.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE88.sql أولًا ثم أعد المحاولة.' : (error.message||error));
   }
 
   function bindProductDragReorder(){
@@ -3071,6 +3195,20 @@ window.FLOWER_LIGHT_SUPABASE = {
     return await new Promise(resolve=>canvas.toBlob(blob=>resolve(blob||file),'image/webp',.82));
   }
   async function uploadBlob(blob,categoryId){ const ext=(blob.type||'image/webp').includes('png')?'png':(blob.type||'').includes('jpeg')?'jpg':'webp'; const path=`${categoryId}/${crypto.randomUUID()}.${ext}`; const {error}=await db.storage.from(bucket).upload(path,blob,{contentType:blob.type||'image/webp',upsert:false,cacheControl:'31536000'}); if(error)throw error; return path; }
+  async function uploadMasterBarcodeFile(file){
+    if(!file) return '';
+    const type=String(file.type||'').toLowerCase();
+    const name=String(file.name||'');
+    const allowed=type.startsWith('image/')||/\.(png|jpe?g|webp|svg)$/i.test(name);
+    if(!allowed)throw new Error('اختر ملف صورة للباركود فقط');
+    if(Number(file.size||0)>5*1024*1024)throw new Error('حجم صورة الباركود يجب ألا يتجاوز 5 MB');
+    const ext=type.includes('png')?'png':type.includes('svg')?'svg':type.includes('webp')?'webp':type.includes('jpeg')||type.includes('jpg')?'jpg':((name.split('.').pop()||'png').toLowerCase().replace('jpeg','jpg'));
+    const safeExt=/^(png|jpg|webp|svg)$/.test(ext)?ext:'png';
+    const path=`site-settings/master-barcode-${crypto.randomUUID()}.${safeExt}`;
+    const {error}=await db.storage.from(bucket).upload(path,file,{contentType:type||'image/png',upsert:false,cacheControl:'31536000'});
+    if(error)throw error;
+    return path;
+  }
   async function uploadProductCatalogPdf(file,categoryId){
     if(!file) return '';
     const isPdf=String(file.type||'').toLowerCase()==='application/pdf' || /\.pdf$/i.test(String(file.name||''));
@@ -3120,6 +3258,7 @@ window.FLOWER_LIGHT_SUPABASE = {
       </section>
       <label class="fl-cloud-check full"><input id="flProdVisible" type="checkbox" ${prod?.is_visible===false?'':'checked'}> إظهار المنتج للزوار</label>
     </div><div class="fl-cloud-dialog-actions"><button class="fl-cloud-btn primary" id="flProdSave" type="submit">حفظ</button><button class="fl-cloud-btn" id="flProdCancel" type="button">إلغاء</button></div></form>`);
+    modal.querySelector('.fl-cloud-dialog')?.classList.add('fl-product-dialog');
 
     const flexibleSpecs=document.getElementById('flFlexibleSpecs');
     const addProductSpec=document.getElementById('flAddProductSpec');
@@ -3299,7 +3438,7 @@ window.FLOWER_LIGHT_SUPABASE = {
           p_image_paths:imagePaths,
           p_primary_path:primaryPath
         });
-        if(galleryError) throw new Error((String(galleryError.code)==='PGRST202'||String(galleryError.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase أولًا.' : (galleryError.message||galleryError));
+        if(galleryError) throw new Error((String(galleryError.code)==='PGRST202'||String(galleryError.code)==='42883') ? 'شغّل ملف FINAL_SQL_STAGE88.sql في Supabase أولًا.' : (galleryError.message||galleryError));
         // From this point the database save is committed; a later UI refresh failure must not roll it back.
         saveCommitted=true;
         createdProductId='';

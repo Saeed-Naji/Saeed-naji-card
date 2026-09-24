@@ -119,7 +119,7 @@ Deno.serve(async (request) => {
     if (ownerAccessError) throw ownerAccessError
     if (recoveryError) {
       if (String(recoveryError.code) === '42P01') {
-        return response(500, { error: 'شغّل ملف FINAL_SQL_STAGE84.sql في Supabase أولًا.' })
+        return response(500, { error: 'شغّل ملف FINAL_SQL_STAGE87.sql في Supabase أولًا.' })
       }
       throw recoveryError
     }

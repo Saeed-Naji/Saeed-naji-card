@@ -18,5 +18,5 @@ const server=http.createServer((req,res)=>{
     fs.createReadStream(target).pipe(res);
   });
 });
-server.listen(port,'127.0.0.1',()=>process.stdout.write(`STAGE84_TEST_SERVER ${port}\n`));
+server.listen(port,'127.0.0.1',()=>process.stdout.write(`STAGE88_TEST_SERVER ${port}\n`));
 for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>server.close(()=>process.exit(0)));

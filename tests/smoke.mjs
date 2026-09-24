@@ -13,11 +13,11 @@ const sync = read('public-sync.js');
 const css = read('style.css');
 const manageAdmin = read('supabase/functions/manage-admin-account/index.ts');
 
-assert.match(index, /Flower Light STAGE84/);
+assert.match(index, /Flower Light STAGE88/);
 assert.doesNotMatch(index, /\?v=70/);
 assert.doesNotMatch(index, /\?v=78/);
 assert.doesNotMatch(index, /\?v=79/);
-assert.match(index, /style\.css\?v=84/);
+assert.match(index, /style\.css\?v=88/);
 assert.match(index, /share-image\.jpg/);
 assert.match(index, /<meta id="robotsMeta" name="robots" content="index,follow,max-image-preview:large"/);
 assert.match(index, /'1': 'لوحة المدير \| Flower Light'/);
@@ -67,6 +67,10 @@ assert.deepEqual(responsiveQueries, [
   '(prefers-reduced-motion: reduce)',
 ]);
 assert.match(css, /Consolidated responsive architecture/);
+assert.match(css, /\.fl-cloud-dialog\.fl-product-dialog\{[\s\S]*?width:min\(980px,calc\(100vw - 32px\)\)/);
+assert.match(css, /\.image-lightbox\{[\s\S]*?align-items:flex-start!important/);
+assert.match(admin, /classList\.add\('fl-product-dialog'\)/);
+assert.match(app, /imageLightbox\.scrollTop = 0/);
 assert.match(app, /actions\.append\(pdfButton, shareButton, whatsappLink\)/);
 assert.match(css, /\.product-card-actions \.product-whatsapp-button\{[\s\S]*?grid-column:1\/-1!important;/);
 assert.match(css, /\.image-lightbox-actions \.image-lightbox-whatsapp\{[\s\S]*?grid-column:1\/-1!important;/);
@@ -98,20 +102,45 @@ assert.match(admin, /data-price-tier-min/);
 assert.match(admin, /data-price-tier-max/);
 assert.match(app, /سعر جملة الجملة/);
 assert.match(app, /priceTierRangeNote/);
-assert.match(app, /url\.searchParams\.set\('v', '84'\)/);
+assert.match(app, /url\.searchParams\.set\('v', '87'\)/);
 assert.match(index, /flLeadWebsite/);
 assert.match(sync, /leadSubmitCooldownMs=30000/);
 assert.match(admin, /leadSubmitCooldownMs=30000/);
-assert.match(read('FINAL_SQL_STAGE84.sql'), /suppress_recent_duplicate_customer_lead/);
-assert.match(read('FINAL_SQL_STAGE84.sql'), /create table if not exists public\.site_settings/);
-assert.match(read('FINAL_SQL_STAGE84.sql'), /require_customer_lead boolean not null default true/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /suppress_recent_duplicate_customer_lead/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /create table if not exists public\.site_settings/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /require_customer_lead boolean not null default true/);
 assert.match(admin, /flCustomerLeadGateSettingsForm/);
 assert.match(admin, /flRequireCustomerLead/);
 assert.match(sync, /FLOWER_LIGHT_SITE_SETTINGS/);
 assert.match(sync, /require_customer_lead===false/);
 
+// STAGE88: Owner-managed design footer number replaces the website URL in shared export template.
+assert.match(admin, /flDesignFooterNumberSettingsForm/);
+assert.match(admin, /flDesignFooterNumber/);
+assert.match(admin, /design_footer_number/);
+assert.match(admin, /design_footer_label/);
+assert.match(sync, /design_footer_number/);
+assert.match(sync, /design_footer_label/);
+assert.match(app, /function catalogDesignFooterNumber\(\)/);
+assert.match(app, /رقم التواصل/);
+assert.doesNotMatch(app, /زوروا موقعنا الإلكتروني/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /design_footer_number text not null default ''/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /STAGE88_DESIGN_FOOTER_LABEL_OK/);
 
-// STAGE84: Admin 2 permissions must be identical across UI, SQL and Edge Function.
+// STAGE88: one optional Owner-managed barcode is shared by all approved export templates.
+assert.match(admin, /flMasterBarcodeSettingsForm/);
+assert.match(admin, /uploadMasterBarcodeFile/);
+assert.match(admin, /master_barcode_path/);
+assert.match(sync, /master_barcode_path/);
+assert.match(app, /function masterBarcodeUrl\(\)/);
+assert.match(app, /async function drawMasterBarcode/);
+assert.match(app, /barcodeDrawn/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /master_barcode_path text not null default ''/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /site-settings/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /STAGE88_MASTER_BARCODE_OK/);
+assert.match(read('FINAL_SQL_STAGE88.sql'), /STAGE88_FINAL_OK/);
+
+// STAGE88: Admin 2 permissions must be identical across UI, SQL and Edge Function.
 assert.match(admin, /delegatablePermissionKeys = new Set\(\[\.\.\.validPermissionKeys\]\.filter\(key=>!\['sections','products'\]\.includes\(key\)\)\)/);
 assert.match(admin, /currentAdminPermissions=new Set\(normalizePermissionList\(data\)\)/);
 assert.match(index, /if \(adminPanel === '2'\) document\.getElementById\('flCloudPrimaryAdmin'\)\?\.remove\(\)/);
@@ -119,13 +148,15 @@ const edgeAdmin=read('supabase/functions/manage-admin-account/index.ts');
 const edgeAllowed=edgeAdmin.match(/const allowedPermissions = new Set\(\[([\s\S]*?)\]\)/)?.[1]||'';
 for(const permission of ['analytics','profile','contacts','leads','datasheet']) assert.match(edgeAllowed,new RegExp(`['\"]${permission}['\"]`));
 for(const forbidden of ['sections','products','quotes','services']) assert.doesNotMatch(edgeAllowed,new RegExp(`['\"]${forbidden}['\"]`));
-const sql=read('FINAL_SQL_STAGE84.sql');
-const hardening=sql.slice(sql.lastIndexOf('STAGE84 ADMIN=2 FINAL PERMISSION HARDENING'));
+const sql=read('FINAL_SQL_STAGE88.sql');
+const hardeningStart=sql.lastIndexOf('STAGE88 ADMIN=2 FINAL PERMISSION HARDENING');
+const hardeningEnd=sql.indexOf('STAGE88 GLOBAL MASTER BARCODE',hardeningStart);
+const hardening=sql.slice(hardeningStart,hardeningEnd>hardeningStart?hardeningEnd:undefined);
 for(const permission of ['analytics','profile','contacts','leads','datasheet']) assert.match(hardening,new RegExp(`['\"]${permission}['\"]`));
 for(const forbidden of ['sections','products','quotes','services']) assert.doesNotMatch(hardening,new RegExp(`['\"]${forbidden}['\"]`));
 assert.match(hardening,/where a\.role='subadmin'/);
 
-// STAGE84: every local static reference resolves to a real release file.
+// STAGE88: every local static reference resolves to a real release file.
 const refs=[];
 for(const match of index.matchAll(/(?:src|href)=["']([^"']+)["']/g)) refs.push(match[1]);
 for(const match of css.matchAll(/url\((?:["']?)([^)"']+)(?:["']?)\)/g)) refs.push(match[1]);
@@ -140,13 +171,13 @@ for(const asset of ['app.js','admin.js','public-sync.js','style.css','company-lo
   assert.ok(fs.existsSync(path.join(root,asset)),`required release asset missing: ${asset}`);
 }
 
-// STAGE84: release contains only the canonical social preview asset and no obsolete stage files.
+// STAGE88: release contains only the canonical social preview asset and no obsolete stage files.
 assert.ok(fs.existsSync(path.join(root,'share-image.jpg')));
 assert.equal(fs.existsSync(path.join(root,'share-image-v78.jpg')),false);
 const releaseNames=fs.readdirSync(root);
-assert.equal(releaseNames.some(name=>/^README_STAGE(?!84)/i.test(name)),false);
-assert.equal(releaseNames.some(name=>/^FINAL_SQL_STAGE(?!84)/i.test(name)),false);
-const textBundle=[index,app,admin,sync,css,read('README_STAGE84.txt'),read('FINAL_SQL_STAGE84.sql')].join('\n');
-assert.doesNotMatch(textBundle,/STAGE(?:7[0-9]|8[0-3])|FINAL_SQL_STAGE(?:7[0-9]|8[0-3])|share-image-v78/i);
+assert.equal(releaseNames.some(name=>/^README_STAGE(?!88)/i.test(name)),false);
+assert.equal(releaseNames.some(name=>/^FINAL_SQL_STAGE(?!88)/i.test(name)),false);
+const textBundle=[index,app,admin,sync,css,read('README_STAGE88.txt'),read('FINAL_SQL_STAGE88.sql')].join('\n');
+assert.doesNotMatch(textBundle,/STAGE(?:7[0-9]|8[0-6])|FINAL_SQL_STAGE(?:7[0-9]|8[0-6])|share-image-v78/i);
 
-console.log('STAGE84_SMOKE_OK');
+console.log('STAGE88_SMOKE_OK');

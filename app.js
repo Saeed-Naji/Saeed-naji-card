@@ -427,7 +427,7 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     const url = new URL(window.location.href);
     url.hash = '';
     ['admin','category','product','v'].forEach(key => url.searchParams.delete(key));
-    url.searchParams.set('v', '84');
+    url.searchParams.set('v', '87');
     Object.entries(params).forEach(([key, value]) => {
       const clean = String(value || '').trim();
       if (clean) url.searchParams.set(key, clean);
@@ -1478,16 +1478,50 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     return String(first || '').trim();
   }
 
-  function catalogWebsiteUrl() {
-    const list = Array.isArray(window.FLOWER_LIGHT_CONTACTS) ? window.FLOWER_LIGHT_CONTACTS : [];
-    const site = list.find(item => item?.type === 'website' && item?.is_visible !== false)?.value;
-    return String(site || 'https://saeed-naji.github.io/Saeed-naji-card/').trim();
+  function catalogDesignFooterNumber() {
+    return String(window.FLOWER_LIGHT_SITE_SETTINGS?.design_footer_number || '').trim().slice(0, 40);
+  }
+
+  function catalogDesignFooterLabel() {
+    return String(window.FLOWER_LIGHT_SITE_SETTINGS?.design_footer_label || '').trim().slice(0, 40);
   }
 
   async function loadCompanyLogoImage() {
     if (window.__flCompanyLogoPromise) return window.__flCompanyLogoPromise;
-    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.png?v=75').catch(() => null);
+    window.__flCompanyLogoPromise = loadCatalogPdfImage('company-logo.png?v=88').catch(() => null);
     return window.__flCompanyLogoPromise;
+  }
+
+  function masterBarcodeUrl() {
+    return String(window.FLOWER_LIGHT_SITE_SETTINGS?.master_barcode_url || '').trim();
+  }
+
+  async function drawMasterBarcode(ctx, box) {
+    const src = masterBarcodeUrl();
+    if (!src || !box || box.w < 20 || box.h < 20) return false;
+    try {
+      const loaded = await loadCatalogPdfImage(src);
+      try {
+        const img = loaded.image;
+        const padding = 4;
+        const innerW = Math.max(1, box.w - padding * 2);
+        const innerH = Math.max(1, box.h - padding * 2);
+        const scale = Math.min(innerW / img.naturalWidth, innerH / img.naturalHeight);
+        const width = Math.max(1, img.naturalWidth * scale);
+        const height = Math.max(1, img.naturalHeight * scale);
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.drawImage(img, box.x + (box.w - width) / 2, box.y + (box.h - height) / 2, width, height);
+        ctx.restore();
+      } finally {
+        URL.revokeObjectURL(loaded.objectUrl);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[Master barcode] image load failed', error);
+      return false;
+    }
   }
 
   function drawPdfImageBoxFrame(ctx, box) {
@@ -1704,7 +1738,8 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
 
   function drawCatalogFooter(ctx) {
     const phone = catalogContactPhone();
-    const website = catalogWebsiteUrl();
+    const designFooterNumber = catalogDesignFooterNumber();
+    const designFooterLabel = catalogDesignFooterLabel();
     const footerTop = 1320;
 
     ctx.fillStyle = '#ff9f0a';
@@ -1738,22 +1773,24 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       ctx.stroke();
     }
 
-    fillRoundedRect(ctx, 320, 1341, 46, 46, 23, '#ffffff');
-    ctx.fillStyle = '#f29500';
-    ctx.font = '700 23px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('●', 343, 1365);
+    if (designFooterNumber) {
+      fillRoundedRect(ctx, 320, 1341, 46, 46, 23, '#ffffff');
+      ctx.fillStyle = '#f29500';
+      ctx.font = '700 23px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('☎', 343, 1365);
 
-    ctx.direction = 'rtl';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '600 15px Tajawal, Arial, sans-serif';
-    ctx.fillText('زوروا موقعنا الإلكتروني', 695, 1352, 313);
-    ctx.direction = 'ltr';
-    ctx.textAlign = 'left';
-    ctx.font = '400 14px Arial, sans-serif';
-    ctx.fillText(website, 382, 1382, 310);
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 15px Tajawal, Arial, sans-serif';
+      ctx.fillText(designFooterLabel || 'رقم التواصل', 695, 1352, 313);
+      ctx.direction = 'ltr';
+      ctx.textAlign = 'left';
+      ctx.font = '600 18px Arial, sans-serif';
+      ctx.fillText(designFooterNumber, 382, 1382, 310);
+    }
 
     ctx.strokeStyle = '#ffc766';
     ctx.lineWidth = 1.5;
@@ -1874,24 +1911,33 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
       }
     }
 
+    const barcodeBoxHeight = Math.max(0, Math.min(112, tableY - detailsTop - 18));
+    const barcodeDrawn = barcodeBoxHeight >= 54 ? await drawMasterBarcode(ctx, {
+      x: 52,
+      y: tableY - barcodeBoxHeight - 8,
+      w: 192,
+      h: barcodeBoxHeight
+    }) : false;
+    const detailsTextWidth = barcodeDrawn ? 682 : 918;
+
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
     ctx.fillStyle = '#ff9f0a';
     ctx.font = '700 36px Tajawal, Arial, sans-serif';
-    let detailsY = wrapCanvasText(ctx, productName, 956, detailsTop + 36, 918, 40, 2);
+    let detailsY = wrapCanvasText(ctx, productName, 956, detailsTop + 36, detailsTextWidth, 40, 2);
 
     ctx.fillStyle = '#202020';
     ctx.font = '700 21px Tajawal, Arial, sans-serif';
     const codeText = item?.model ? `رقم المنتج / الكود: ${String(item.model)}` : '';
     if (codeText) {
-      ctx.fillText(codeText, 956, detailsY, 918);
+      ctx.fillText(codeText, 956, detailsY, detailsTextWidth);
       detailsY += 32;
     }
 
     if (item?.caption) {
       ctx.fillStyle = '#6a6a6a';
       ctx.font = '600 19px Tajawal, Arial, sans-serif';
-      wrapCanvasText(ctx, item.caption, 956, detailsY + 4, 918, 27, 2);
+      wrapCanvasText(ctx, item.caption, 956, detailsY + 4, detailsTextWidth, 27, 2);
     }
 
     drawPdfSpecsTable(ctx, rows, tableY);
@@ -2505,7 +2551,14 @@ window.FLOWER_LIGHT_PRODUCTS = { catalog: [], chandeliers: [], balfon: [], extra
     imageLightbox.classList.add('open');
     imageLightbox.setAttribute('aria-hidden', 'false');
     document.body.classList.add('image-lightbox-open');
-    window.setTimeout(() => closeImageLightboxButton?.focus(), 0);
+    // Always open from the top. A vertically centered dialog taller than the laptop viewport
+    // can otherwise start above the visible area and make the top of the image look cropped.
+    imageLightbox.scrollTop = 0;
+    imageLightbox.scrollLeft = 0;
+    window.setTimeout(() => {
+      imageLightbox.scrollTop = 0;
+      closeImageLightboxButton?.focus({ preventScroll: true });
+    }, 0);
   }
 
   function showPreviousLightboxItem(method = 'button_or_keyboard') {
