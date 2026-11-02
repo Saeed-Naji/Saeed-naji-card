@@ -24,3 +24,8 @@
 .cloud-quotes-panel .cloud-table-wrap{max-width:100%}
 .cloud-quotes-panel td{vertical-align:top}
 @media(max-width:650px){.cloud-quote-filters{grid-template-columns:1fr}.cloud-quote-actions .cloud-btn{flex:1;min-width:120px}}
+
+/* v0.12 owner-only quotation dashboard freshness */
+.cloud-quote-live{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:170px}
+.cloud-quote-live strong{font-size:14px;color:#1c5d47}
+.cloud-quote-live span{font-size:11px;color:#718590;line-height:1.6}
