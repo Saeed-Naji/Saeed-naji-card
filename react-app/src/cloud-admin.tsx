@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { BrandSettings, Product } from './types';
 import { defaultSettings, validateProduct } from './logic';
+import { saveExcel } from './export';
+import { exportAdminQuotes, filterQuotes, quoteLabels, quoteProducts, quoteStatuses } from './quote-admin';
+import type { QuoteRow, QuoteStatus } from './quote-admin';
 import { cloudClient, fromBusinessRow, fromProductRow, productColumns, businessColumns, toBusinessRow, toProductRow } from './cloud';
 import type { BusinessRow, ProductRow } from './cloud';
 import { uploadCorporateProductImage } from './cloud-images';
@@ -14,10 +17,6 @@ const emptyProduct = (): Product => ({
   status:'available', visible:false, gallery:[]
 });
 type Stage = 'checking' | 'login' | 'denied' | 'ready';
-type QuoteStatus = 'new' | 'in_review' | 'responded' | 'closed';
-type QuoteRow = { id:string;customer_name:string;customer_contact:string;company_name:string;message:string;items:unknown;status:QuoteStatus;created_at:string };
-const quoteLabels:Record<QuoteStatus,string> = {new:'جديد',in_review:'قيد المراجعة',responded:'تم الرد',closed:'مغلق'};
-const quoteStatuses:QuoteStatus[] = ['new','in_review','responded','closed'];
 const genericError = 'تعذرت العملية. تحقق من اتصال قاعدة البيانات وصلاحيات حسابك.';
 export default function CloudAdmin() {
   const [stage,setStage] = useState<Stage>('checking');
@@ -29,6 +28,8 @@ export default function CloudAdmin() {
   const [error,setError] = useState('');
   const [products,setProducts] = useState<Product[]>([]);
   const [quotes,setQuotes] = useState<QuoteRow[]>([]);
+  const [quoteFilter,setQuoteFilter] = useState<QuoteStatus|'all'>('all');
+  const [quoteSearch,setQuoteSearch] = useState('');
   const [settings,setSettings] = useState<BrandSettings>(defaultSettings);
   const [published,setPublished] = useState(false);
   const [draft,setDraft] = useState<Product|null>(null);
@@ -137,6 +138,7 @@ export default function CloudAdmin() {
       setError(err instanceof Error ? err.message : 'تعذر رفع الصورة.');
     } finally {setUploading(false);}
   }
+  const displayedQuotes = filterQuotes(quotes,quoteFilter,quoteSearch);
   const update = <K extends keyof Product>(key:K,value:Product[K]) => setDraft(p=>p?{...p,[key]:value}:p);
   const settingsUpdate = <K extends keyof BrandSettings>(key:K,value:BrandSettings[K]) => setSettings(p=>({...p,[key]:value}));
   return <main className="cloud-admin" dir="rtl" lang="ar">
@@ -155,9 +157,48 @@ export default function CloudAdmin() {
       <div className="cloud-panel"><div className="cloud-section-head"><h2>إدارة المنتجات <small>({products.length})</small></h2><button className="cloud-btn" onClick={()=>{setDraft(emptyProduct());setError('');setImageInfo('');}}>+ إضافة منتج</button></div>
       <div className="cloud-table-wrap"><table><thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>النشر</th><th>الإجراءات</th></tr></thead><tbody>{products.map(p=><tr key={p.id}><td dir="ltr">{p.sku}</td><td>{p.name}</td><td>{p.category}</td><td>{p.visible?'ظاهر':'مخفي'}</td><td><button className="cloud-link" onClick={()=>{setDraft({...p});setError('');setImageInfo('');}}>تعديل</button><button className="cloud-link cloud-danger" disabled={busy} onClick={()=>void deleteProduct(p)}>حذف</button></td></tr>)}</tbody></table>
       {products.length===0&&<p>لا توجد منتجات في القاعدة الجديدة. لا تُنقل منتجات المشروع القديم تلقائيًا.</p>}</div></div>
-      <section className="cloud-panel"><div className="cloud-section-head"><h2>طلبات عروض الأسعار <small>({quotes.length})</small></h2><button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void reload()}>تحديث الطلبات</button></div>
-        <p className="cloud-note">تظهر آخر 100 طلب فقط، وهي بيانات خاصة بالمدير المعتمد. استقبال الطلبات من العملاء غير مفعل حتى إنشاء نقطة إرسال آمنة والتحقق من إساءة الاستخدام.</p>
-        {quotes.length===0 ? <p>لا توجد طلبات مسجلة في قاعدة الموقع الجديدة.</p> : <div className="cloud-table-wrap"><table><thead><tr><th>العميل</th><th>التواصل</th><th>تاريخ الطلب</th><th>الأصناف</th><th>الحالة</th></tr></thead><tbody>{quotes.map(q=><tr key={q.id}><td><strong>{q.customer_name}</strong><div>{q.company_name}</div>{q.message && <details><summary>رسالة العميل</summary><p className="cloud-message">{q.message}</p></details>}</td><td dir="ltr">{q.customer_contact}</td><td>{new Date(q.created_at).toLocaleDateString('ar-SA')}</td><td>{Array.isArray(q.items) ? q.items.length : '—'}</td><td><select aria-label={'حالة طلب '+q.customer_name} value={q.status} disabled={busy} onChange={e=>void updateQuoteStatus(q.id,e.target.value as QuoteStatus)}>{quoteStatuses.map(status=><option key={status} value={status}>{quoteLabels[status]}</option>)}</select></td></tr>)}</tbody></table></div>}
+      <section className="cloud-panel cloud-quotes-panel">
+        <div className="cloud-section-head"><h2>طلبات عروض الأسعار <small>({quotes.length} من أحدث 100 طلب)</small></h2>
+          <div className="cloud-quote-actions">
+            <button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void reload()}>تحديث الطلبات</button>
+            <button type="button" className="cloud-btn" disabled={busy||!displayedQuotes.length}
+              onClick={()=>{
+                if(!confirm('سيُنزل ملف Excel يحتوي على بيانات تواصل العملاء. احتفظ به في مكان آمن ولا تشاركه دون إذن. متابعة؟'))return;
+                saveExcel(exportAdminQuotes(displayedQuotes),'saeed-corporate-quotes.xlsx');
+              }}>تصدير النتائج إلى Excel</button>
+          </div>
+        </div>
+        <p className="cloud-note">آخر 100 طلب في قاعدة الموقع الجديدة فقط، وتظهر للمدير المعتمد. قد توجد طلبات أقدم غير معروضة. لا تُشارك ملفات التصدير التي تحتوي على بيانات العملاء. يبدأ استقبال طلبات العملاء بعد تفعيل Turnstile والتحقق من سياسة الخصوصية.</p>
+        <div className="cloud-quote-filters">
+          <label>البحث في العملاء أو الأكواد
+            <input type="search" placeholder="الاسم أو رقم التواصل أو كود المنتج" value={quoteSearch} onChange={e=>setQuoteSearch(e.target.value)}/></label>
+          <label>حالة الطلب
+            <select value={quoteFilter} onChange={e=>setQuoteFilter(e.target.value as QuoteStatus|'all')}>
+              <option value="all">جميع الحالات ({quotes.length})</option>
+              {quoteStatuses.map(status=><option value={status} key={status}>{quoteLabels[status]} ({quotes.filter(q=>q.status===status).length})</option>)}
+            </select>
+          </label>
+        </div>
+        {quotes.length===0 ? <p>لا توجد طلبات مسجلة في قاعدة الموقع الجديدة.</p> :
+          displayedQuotes.length===0 ? <p>لا توجد طلبات مطابقة للبحث أو الفلتر الحالي.</p> :
+          <div className="cloud-table-wrap"><table><thead><tr>
+            <th>العميل</th><th>التواصل</th><th>تاريخ الطلب</th><th>الأصناف والكميات</th><th>الحالة</th>
+          </tr></thead><tbody>{displayedQuotes.map(q=><tr key={q.id}>
+            <td><strong>{q.customer_name}</strong>{q.company_name&&<div>{q.company_name}</div>}
+              <small className="cloud-quote-id" dir="ltr">رقم الطلب: {q.id}</small>
+              {q.message&&<details><summary>ملاحظات العميل</summary><p className="cloud-message">{q.message}</p></details>}
+            </td>
+            <td dir="ltr">{q.customer_contact}</td>
+            <td>{new Date(q.created_at).toLocaleString('ar-SA')}</td>
+            <td>{quoteProducts(q.items).length ? <details className="cloud-quote-details"><summary>
+              {quoteProducts(q.items).length} صنف · {quoteProducts(q.items).reduce((sum,item)=>sum+item.quantity,0)} وحدة
+            </summary><ul>{quoteProducts(q.items).map((item,i)=><li key={i}><strong>{item.sku}</strong> — {item.name} <b>× {item.quantity}</b></li>)}</ul></details> :
+              <span>لا توجد أصناف قابلة للعرض</span>}</td>
+            <td><select aria-label={'حالة طلب '+q.customer_name} value={q.status} disabled={busy}
+              onChange={e=>void updateQuoteStatus(q.id,e.target.value as QuoteStatus)}>
+              {quoteStatuses.map(status=><option key={status} value={status}>{quoteLabels[status]}</option>)}
+            </select></td>
+          </tr>)}</tbody></table></div>}
       </section>
       <section className="cloud-panel"><h2>الهوية ومعلومات الشركة</h2><div className="cloud-fields">
         {([['name','الاسم التجاري'],['commercialRegistration','السجل التجاري'],['taxNumber','الرقم الضريبي'],['phone','الهاتف'],['whatsapp','رقم واتساب الدولي'],['heroTitle','عنوان الواجهة'],['heroDescription','وصف الواجهة']] as const).map(([key,label])=><label key={key}>{label}<input value={String(settings[key])} onChange={e=>settingsUpdate(key,e.target.value)}/></label>)}
