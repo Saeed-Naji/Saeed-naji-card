@@ -5,10 +5,13 @@ import { CART_KEY, demoProducts, defaultSettings, EMPTY_FILTERS, filterOptions, 
 import { exportProductsExcel, exportQuoteExcel, saveExcel } from './export';
 import { downloadSnapshot, makeSnapshot, parseSnapshot } from './portable';
 import './styles.css';
+import CloudAdmin from './cloud-admin';
+import { cloudEnabled, readPublicCatalog } from './cloud';
 
 const statusLabels: Record<Product['status'],string> = {available:'متوفر',soon:'قريبًا',unavailable:'غير متوفر'};
 const statusClass: Record<Product['status'],string> = {available:'available',soon:'soon',unavailable:'unavailable'};
-const adminMode = import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
+const adminMode = !cloudEnabled && import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
+const cloudAdminRequested = new URLSearchParams(location.search).get('admin') === '1';
 
 function readProducts(): Product[] {
   try { const parsed=safelyParseJson(localStorage.getItem(PRODUCTS_KEY)); return Array.isArray(parsed) && parsed.every(isProduct) ? parsed : demoProducts; } catch { return demoProducts; }
@@ -107,17 +110,21 @@ function Admin({products,settings,onSaveProduct,onDeleteProduct,onSettings,onImp
     </section>;
 }
 function App(){
-  const [products,setProducts]=useState<Product[]>(readProducts);
-  const [settings,setSettings]=useState<BrandSettings>(readSettings);
+  const [products,setProducts]=useState<Product[]>(()=>cloudEnabled?[]:readProducts());
+  const [settings,setSettings]=useState<BrandSettings>(()=>cloudEnabled?defaultSettings:readSettings());
   const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS});
-  const [cart,setCart]=useState<CartItem[]>(()=>readCart(readProducts()));
+  const [cart,setCart]=useState<CartItem[]>(()=>cloudEnabled?[]:readCart(readProducts()));
   const [cartOpen,setCartOpen]=useState(false);
   const [admin,setAdmin]=useState(adminMode);
   const [printProduct,setPrintProduct]=useState<Product|null>(null);
   const [notice,setNotice]=useState('');
-  useEffect(()=>{if(!saveState(PRODUCTS_KEY,products))setNotice('تعذر الحفظ على هذا المتصفح')},[products]);
-  useEffect(()=>{if(!saveState(SETTINGS_KEY,settings))setNotice('تعذر حفظ إعدادات الشركة')},[settings]);
+  useEffect(()=>{if(!cloudEnabled && !saveState(PRODUCTS_KEY,products))setNotice('تعذر الحفظ على هذا المتصفح')},[products]);
+  useEffect(()=>{if(!cloudEnabled && !saveState(SETTINGS_KEY,settings))setNotice('تعذر حفظ إعدادات الشركة')},[settings]);
   useEffect(()=>{if(!saveState(CART_KEY,cart))setNotice('تعذر حفظ قائمة الطلب')},[cart]);
+  useEffect(()=>{if(!cloudEnabled)return;let active=true;
+    readPublicCatalog().then(data=>{if(active){setProducts(data.products);setSettings(data.settings);}})
+      .catch(()=>{if(active){setProducts([]);setNotice('تعذر تحميل بيانات الكتالوج من القاعدة الجديدة. لم يتم عرض بيانات محلية بديلة.');}});
+    return ()=>{active=false;};},[]);
   const filtered=useMemo(()=>filterProducts(products,filters),[products,filters]);
   const available=useMemo(()=>visibleProducts(products),[products]);
   const cartItems=useMemo(()=>cart.map(c=>({p:products.find(p=>p.id===c.productId && p.visible),quantity:c.quantity})).filter((i):i is {p:Product;quantity:number}=>!!i.p),[cart,products]);
@@ -155,4 +162,4 @@ function App(){
   </>;
 }
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode>{cloudAdminRequested ? (cloudEnabled ? <CloudAdmin/> : <div style={{padding:32,margin:'auto',maxWidth:700}}><h1>لوحة الإدارة غير مفعّلة</h1><p>يتطلب تشغيلها ربط مشروع Supabase مستقل وإضافة مفتاح النشر العام ضمن إعدادات البناء.</p><a href="./">العودة للموقع</a></div>) : <App/>}</React.StrictMode>);
