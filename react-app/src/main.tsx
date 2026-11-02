@@ -6,6 +6,7 @@ import { exportProductsExcel, exportQuoteExcel, saveExcel } from './export';
 import { downloadSnapshot, makeSnapshot, parseSnapshot } from './portable';
 import './styles.css';
 import CloudAdmin from './cloud-admin';
+import { productImages } from './gallery';
 import { cloudEnabled, readPublicCatalog } from './cloud';
 
 const statusLabels: Record<Product['status'],string> = {available:'متوفر',soon:'قريبًا',unavailable:'غير متوفر'};
@@ -47,9 +48,23 @@ function QuantityControl({product, quantity, onCart}:{product:Product;quantity:n
     <button type="button" aria-label={`زيادة ${product.name}`} onClick={()=>onCart(product,(parseQuantityInput(draft)??quantity)+1)}>+</button></div>;
 }
 function ProductPhoto({product}:{product:Product}){
+  const photos=productImages(product);
+  const [selected,setSelected]=useState(0);
   const [failed,setFailed]=useState(false);
-  useEffect(()=>setFailed(false),[product.image]);
-  return product.image && !failed ? <img loading="lazy" src={product.image} alt={product.name} onError={()=>setFailed(true)}/> : <LightIcon/>;
+  useEffect(()=>{setSelected(0);setFailed(false);},[product.id,product.image,product.gallery?.join('|')]);
+  const active=photos[selected]??photos[0];
+  return <div className="product-gallery">
+    <div className="photo-stage">{active && !failed ?
+      <img loading="lazy" src={active} alt={product.name+' — صورة '+(selected+1)} onError={()=>setFailed(true)}/> :
+      <LightIcon/>}</div>
+    {photos.length>1&&<div className="photo-thumbs" aria-label={'صور المنتج '+product.name}>
+      {photos.map((src,i)=><button key={src} type="button" className={'photo-thumb '+(selected===i?'active':'')}
+        aria-label={'عرض الصورة '+(i+1)+' من '+photos.length} aria-pressed={selected===i}
+        onClick={()=>{setSelected(i);setFailed(false);}}>
+        <img loading="lazy" src={src} alt=""/>
+      </button>)}
+    </div>}
+  </div>;
 }
 function ProductCard({product, quantity, onCart, onDatasheet}:{product:Product;quantity:number;onCart:(p:Product,q:number)=>void;onDatasheet:(p:Product)=>void}){
   return <article className="product-card"><div className="product-media">
