@@ -115,15 +115,16 @@ function App(){
   const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS});
   const [cart,setCart]=useState<CartItem[]>(()=>cloudEnabled?[]:readCart(readProducts()));
   const [cartOpen,setCartOpen]=useState(false);
+  const [catalogReady,setCatalogReady]=useState(!cloudEnabled);
   const [admin,setAdmin]=useState(adminMode);
   const [printProduct,setPrintProduct]=useState<Product|null>(null);
   const [notice,setNotice]=useState('');
   useEffect(()=>{if(!cloudEnabled && !saveState(PRODUCTS_KEY,products))setNotice('تعذر الحفظ على هذا المتصفح')},[products]);
   useEffect(()=>{if(!cloudEnabled && !saveState(SETTINGS_KEY,settings))setNotice('تعذر حفظ إعدادات الشركة')},[settings]);
-  useEffect(()=>{if(!saveState(CART_KEY,cart))setNotice('تعذر حفظ قائمة الطلب')},[cart]);
+  useEffect(()=>{if(catalogReady && !saveState(CART_KEY,cart))setNotice('تعذر حفظ قائمة الطلب')},[cart,catalogReady]);
   useEffect(()=>{if(!cloudEnabled)return;let active=true;
-    readPublicCatalog().then(data=>{if(active){setProducts(data.products);setSettings(data.settings);}})
-      .catch(()=>{if(active){setProducts([]);setNotice('تعذر تحميل بيانات الكتالوج من القاعدة الجديدة. لم يتم عرض بيانات محلية بديلة.');}});
+    readPublicCatalog().then(data=>{if(active){setProducts(data.products);setSettings(data.settings);setCart(readCart(data.products));setCatalogReady(true);}})
+      .catch(()=>{if(active){setProducts([]);setCart([]);setCatalogReady(false);setNotice('تعذر تحميل بيانات الكتالوج من القاعدة الجديدة. لم يتم عرض بيانات محلية بديلة.');}});
     return ()=>{active=false;};},[]);
   const filtered=useMemo(()=>filterProducts(products,filters),[products,filters]);
   const available=useMemo(()=>visibleProducts(products),[products]);
@@ -149,7 +150,7 @@ function App(){
   <section id="about" className="container about-section"><div><span className="section-kicker">ABOUT FLOWER LIGHT</span><h2>نضيء التفاصيل،<br/><em>ونصنع الفرق.</em></h2></div><div><p>في فلاور لايت نؤمن بأن الإنارة عنصر معماري أساسي يمنح المكان شخصيته. نقدم حلولًا مدروسة تلائم المشاريع السكنية والتجارية، مع اهتمام بأداء المنتج وتفاصيله الفنية.</p><a className="underlined-link" href="#contact">تعرف على شركتنا <span>↗</span></a></div></section>
   <section id="catalog" className="catalog-section"><div className="container"><div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
   <div className="filters"><label className="search-label">بحث في المنتجات<input placeholder="اسم المنتج أو الكود..." value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))}/></label>{filterSelect('category','القسم')}{filterSelect('cct','لون الإضاءة')}{filterSelect('installation','التركيب')}{filterSelect('status','التوفر')}<button type="button" className="clear-filters" onClick={()=>setFilters({...EMPTY_FILTERS})}>مسح الفلاتر</button></div>
-  {filtered.length?<div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
+  {!catalogReady && cloudEnabled ? <div className="empty-state" role="status"><h3>جاري تحميل الكتالوج</h3><p>تُجلب المنتجات من قاعدة Saeed المؤسسية.</p></div> : filtered.length?<div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
   <div className="catalog-bottom"><button type="button" className="button outline" onClick={()=>saveExcel(exportProductsExcel(available),'flower-light-products.xlsx')}>تصدير قائمة المنتجات Excel ↓</button><p>المنتجات المعروضة بيانات تجريبية لتطوير المشروع وليست كتالوجًا نهائيًا.</p></div></div></section>
   <section className="banner-section"><div className="container banner-inner"><span className="section-kicker">YOUR LIGHTING PARTNER</span><h2>مشروعك القادم،<br/>يستحق إنارة مختلفة.</h2><a href="#contact" className="button gold">تواصل معنا <span>←</span></a></div></section>
   <section className="contact-section" id="contact"><div className="container contact-layout"><div><span className="section-kicker">LET'S CONNECT</span><h2>لنعمل على<br/><em>شيءٍ مضيء.</em></h2><p>يسعدنا مساعدتك في اختيار الإنارة المناسبة لمشروعك.</p></div><div className="contact-card"><h3>تواصل مع فريقنا</h3>{settings.phone ? <a href={`tel:${settings.phone.replace(/[^\d+]/g,'')}`}>الهاتف <strong dir="ltr">{settings.phone}</strong></a> : <div>الهاتف <strong>بانتظار الاعتماد</strong></div>}<div>الاسم التجاري <strong>{settings.name}</strong></div><div>السجل التجاري <strong dir="ltr">{settings.commercialRegistration || "بانتظار الاعتماد"}</strong></div><div>الرقم الضريبي <strong dir="ltr">{settings.taxNumber || "بانتظار الاعتماد"}</strong></div><button type="button" className="button gold" onClick={()=>setCartOpen(true)}>إنشاء طلب عرض سعر</button></div></div></section></main>
