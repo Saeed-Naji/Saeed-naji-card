@@ -13,6 +13,7 @@ export type Product = {
   ip: string;
   beam: number;
   image: string;
+  gallery?: string[]; // Up to four additional photos; image remains primary.
   description: string;
   status: ProductStatus;
   visible: boolean;
