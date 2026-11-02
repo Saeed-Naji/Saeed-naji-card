@@ -8,6 +8,7 @@ import type { QuoteRow, QuoteStatus } from './quote-admin';
 import { cloudClient, fromBusinessRow, fromProductRow, productColumns, businessColumns, toBusinessRow, toProductRow } from './cloud';
 import type { BusinessRow, ProductRow } from './cloud';
 import { uploadCorporateProductImage } from './cloud-images';
+import { PrivacyAdmin } from './privacy-admin';
 import { addProductImage, MAX_PRODUCT_IMAGES, productImages, setPrimaryImage, unlinkProductImage } from './gallery';
 import './cloud-admin.css';
 
@@ -256,6 +257,7 @@ export default function CloudAdmin() {
             </select></td>
           </tr>)}</tbody></table></div>}
       </section>
+      <PrivacyAdmin />
       <section className="cloud-panel"><h2>الهوية ومعلومات الشركة</h2><div className="cloud-fields">
         {([['name','الاسم التجاري'],['commercialRegistration','السجل التجاري'],['taxNumber','الرقم الضريبي'],['phone','الهاتف'],['whatsapp','رقم واتساب الدولي'],['heroTitle','عنوان الواجهة'],['heroDescription','وصف الواجهة']] as const).map(([key,label])=><label key={key}>{label}<input value={String(settings[key])} onChange={e=>settingsUpdate(key,e.target.value)}/></label>)}
       </div><label className="cloud-check"><input type="checkbox" checked={published} onChange={e=>setPublished(e.target.checked)}/> نشر معلومات الشركة للزوار</label>

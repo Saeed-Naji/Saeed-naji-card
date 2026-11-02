@@ -8,12 +8,14 @@ import './styles.css';
 import CloudAdmin from './cloud-admin';
 import { productImages } from './gallery';
 import { QuoteRequestDialog } from './quote-form';
+import PrivacyPage from './privacy-page';
 import { cloudEnabled, readPublicCatalog } from './cloud';
 
 const statusLabels: Record<Product['status'],string> = {available:'متوفر',soon:'قريبًا',unavailable:'غير متوفر'};
 const statusClass: Record<Product['status'],string> = {available:'available',soon:'soon',unavailable:'unavailable'};
 const adminMode = !cloudEnabled && import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
 const cloudAdminRequested = new URLSearchParams(location.search).get('admin') === '1';
+const privacyRequested = new URLSearchParams(location.search).get('privacy') === '1';
 
 function readProducts(): Product[] {
   try { const parsed=safelyParseJson(localStorage.getItem(PRODUCTS_KEY)); return Array.isArray(parsed) && parsed.every(isProduct) ? parsed : demoProducts; } catch { return demoProducts; }
@@ -183,4 +185,4 @@ function App(){
   </>;
 }
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode>{cloudAdminRequested ? (cloudEnabled ? <CloudAdmin/> : <div style={{padding:32,margin:'auto',maxWidth:700}}><h1>لوحة الإدارة غير مفعّلة</h1><p>يتطلب تشغيلها ربط مشروع Supabase مستقل وإضافة مفتاح النشر العام ضمن إعدادات البناء.</p><a href="./">العودة للموقع</a></div>) : <App/>}</React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode>{privacyRequested ? <PrivacyPage/> : cloudAdminRequested ? (cloudEnabled ? <CloudAdmin/> : <div style={{padding:32,margin:'auto',maxWidth:700}}><h1>لوحة الإدارة غير مفعّلة</h1><p>يتطلب تشغيلها ربط مشروع Supabase مستقل وإضافة مفتاح النشر العام ضمن إعدادات البناء.</p><a href="./">العودة للموقع</a></div>) : <App/>}</React.StrictMode>);

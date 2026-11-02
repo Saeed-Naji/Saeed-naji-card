@@ -104,7 +104,7 @@ export function QuoteRequestDialog({cart,onClose,onSubmitted}:{
           <label>رقم الجوال أو البريد الإلكتروني <span aria-hidden="true">*</span><input autoComplete="email" required maxLength={160} value={contact} onChange={e=>setContact(e.target.value)} placeholder="وسيلة التواصل للرد على طلبك"/></label>
           <label>اسم الشركة (اختياري)<input maxLength={120} value={company} onChange={e=>setCompany(e.target.value)} placeholder="الجهة أو المؤسسة"/></label>
           <label>ملاحظات (اختياري)<textarea rows={3} maxLength={1000} value={message} onChange={e=>setMessage(e.target.value)} placeholder="تفاصيل المشروع أو موعد التوريد المطلوب"/></label>
-          <label className="quote-consent"><input type="checkbox" required checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>أوافق على استخدام معلومات التواصل هذه للرد على طلب عرض السعر، وأعلم أنها ستُرسل إلى إدارة الموقع.</span></label>
+          <label className="quote-consent"><input type="checkbox" required checked={accepted} onChange={e=>setAccepted(e.target.checked)}/><span>أوافق على استخدام معلومات التواصل والمنتجات المطلوبة للرد على طلب عرض السعر، وأعلم أنها ستُرسل إلى إدارة الموقع. <a href="./?privacy=1" target="_blank" rel="noopener noreferrer">عرض بيان الخصوصية وحالة اعتماده</a>.</span></label>
           <div className="quote-security" ref={slot} aria-label="التحقق الأمني"></div>
           {error&&<p className="quote-form-error" role="alert">{error}</p>}
           <div className="quote-form-actions"><button type="submit" className="button primary" disabled={sending||!token||!accepted}>{sending?'جارٍ إرسال الطلب…':'تأكيد وإرسال الطلب'}</button>
