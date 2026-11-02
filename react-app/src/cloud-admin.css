@@ -11,3 +11,16 @@
 .cloud-gallery-controls{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
 .cloud-gallery-controls .cloud-link{margin:0;text-align:right;padding:3px 0}
 .cloud-primary-label{font-weight:700;color:#27694e;font-size:12px;padding:5px 0}
+
+/* v0.10: private quotation desk, search, status and detailed line items */
+.cloud-quote-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cloud-quote-filters{display:grid;grid-template-columns:minmax(240px,1fr) minmax(190px,250px);gap:14px;margin:15px 0 20px}
+.cloud-quotes-panel .cloud-quote-filters label{margin-bottom:0}
+.cloud-quote-id{display:block;margin-top:8px;color:#7c9096;white-space:normal;overflow-wrap:anywhere;font:11px Manrope,monospace}
+.cloud-quote-details summary{cursor:pointer;color:#12596b;font-weight:700;white-space:nowrap}
+.cloud-quote-details ul{margin:10px 0;padding-inline-start:18px;max-width:320px}
+.cloud-quote-details li{font-size:12px;line-height:1.9;border-bottom:1px solid #edf1f2;margin-bottom:4px;padding-bottom:4px;overflow-wrap:anywhere}
+.cloud-quote-details li b{white-space:nowrap}
+.cloud-quotes-panel .cloud-table-wrap{max-width:100%}
+.cloud-quotes-panel td{vertical-align:top}
+@media(max-width:650px){.cloud-quote-filters{grid-template-columns:1fr}.cloud-quote-actions .cloud-btn{flex:1;min-width:120px}}

@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const out=join(root,'tests','.compiled');
 rmSync(out,{recursive:true,force:true});mkdirSync(out,{recursive:true});
-const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts'],{cwd:root,encoding:'utf8'});
+const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts','src/quote-admin.ts'],{cwd:root,encoding:'utf8'});
 if(compiled.status!==0){console.error(compiled.stdout,compiled.stderr);process.exit(1);}
 writeFileSync(join(out,'package.json'),'{'+'"type":"commonjs"}');
 const require=createRequire(import.meta.url);
@@ -15,6 +15,8 @@ const exported=require(join(out,'export.js'));
 const portable=require(join(out,'portable.js'));
 const gallery=require(join(out,'gallery.js'));
 const quoteRequest=require(join(out,'quote-request.js'));
+const quoteAdmin=require(join(out,'quote-admin.js'));
+
 
 const all=logic.demoProducts;
 const same=logic.filterProducts(all,{...logic.EMPTY_FILTERS,category:'داون لايت'});
@@ -86,3 +88,23 @@ assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555',''
 assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:1}],true,''),/التحقق الأمني/);
 assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:1},{productId,quantity:2}],true,'valid-token-that-is-long-enough'),/غير صالحة/);
 console.log('PASS: quote validation, consent, product quantities and duplicate prevention');
+
+const demoQuote={
+  id:'11111111-2222-4333-8444-555555555555',
+  customer_name:'عميل تجريبي',
+  customer_contact:'customer@example.com',
+  company_name:'شركة اختبار',
+  message:'الرجاء إرسال الأسعار',
+  items:[{productId:'10000000-0000-4000-8000-000000000001',sku:'FL-DL-12',name:'داون لايت',quantity:4}],
+  status:'new',created_at:'2026-11-02T12:00:00Z'
+};
+assert.deepEqual(quoteAdmin.quoteProducts(demoQuote.items),[{sku:'FL-DL-12',name:'داون لايت',quantity:4}]);
+assert.deepEqual(quoteAdmin.quoteProducts([{sku:'A',name:'a',quantity:0},null,'bad']),[]);
+assert.equal(quoteAdmin.filterQuotes([demoQuote],'new','FL-DL-12').length,1);
+assert.equal(quoteAdmin.filterQuotes([demoQuote],'responded','FL-DL-12').length,0);
+assert.equal(quoteAdmin.filterQuotes([demoQuote],'all','customer@example.com').length,1);
+assert.equal(quoteAdmin.filterQuotes([demoQuote],'all','missing item').length,0);
+const quotesXlsx=quoteAdmin.exportAdminQuotes([demoQuote]);
+assert.deepEqual(Array.from(quotesXlsx.slice(0,2)),[80,75]);
+assert.ok(quotesXlsx.length>1000);
+console.log('PASS: private quote product details, status filter, search and native XLSX export');
