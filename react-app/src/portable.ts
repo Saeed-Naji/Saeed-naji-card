@@ -1,5 +1,6 @@
 import type { BrandSettings, Product } from './types';
 import { defaultSettings, isProduct, validateProduct } from './logic';
+import { productImages } from './gallery';
 
 const SIGNATURE = 'flower-light-corporate-independent-v1';
 export function makeSnapshot(products: Product[], settings: BrandSettings): string {
@@ -23,7 +24,7 @@ export function parseSnapshot(text: string): { products: Product[]; settings: Br
     // Copy known keys rather than retaining arbitrary imported properties.
     products.push({id:item.id,sku:item.sku,name:item.name,nameEn:item.nameEn,category:item.category,
       installation:item.installation,watt:item.watt,cct:item.cct,lumens:item.lumens,cri:item.cri,
-      ip:item.ip,beam:item.beam,image:item.image,description:item.description,status:item.status,visible:item.visible});
+      ip:item.ip,beam:item.beam,image:item.image,gallery:productImages(item).slice(1),description:item.description,status:item.status,visible:item.visible});
     ids.add(item.id);
   }
   if (!obj.settings || typeof obj.settings !== 'object' || Array.isArray(obj.settings)) throw new Error('إعدادات المنشأة غير صحيحة');
