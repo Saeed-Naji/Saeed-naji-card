@@ -11,11 +11,12 @@ async function getTable(table, search='') {
   const response = await fetch(new URL('/rest/v1/' + table + search, url), {headers, signal:AbortSignal.timeout(15000)});
   return {status:response.status,body:await response.json()};
 }
-const products = await getTable('corp_products','?select=id,sku,name_ar,visible&visible=eq.true');
+const products = await getTable('corp_products','?select=id,sku,name_ar,visible,gallery_images&visible=eq.true');
 assert.equal(products.status,200,'Public corporate products are not readable');
 assert.ok(Array.isArray(products.body),'Expected an array of products');
 assert.ok(products.body.length >= 1,'No corporate sample products; check seed or database');
 assert.ok(products.body.every(p => p.visible === true),'Hidden product leaked to public client');
+assert.ok(products.body.every(p=>Array.isArray(p.gallery_images) && p.gallery_images.length<=4),'Gallery data invalid or unavailable');
 console.log('PASS: public catalog loaded from Saeed corporate Supabase', products.body.length, 'visible products.');
 
 const business = await getTable('corp_business_info','?select=singleton,company_name,is_published');

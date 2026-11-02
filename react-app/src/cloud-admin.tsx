@@ -5,12 +5,13 @@ import { defaultSettings, validateProduct } from './logic';
 import { cloudClient, fromBusinessRow, fromProductRow, productColumns, businessColumns, toBusinessRow, toProductRow } from './cloud';
 import type { BusinessRow, ProductRow } from './cloud';
 import { uploadCorporateProductImage } from './cloud-images';
+import { addProductImage, MAX_PRODUCT_IMAGES, productImages, setPrimaryImage, unlinkProductImage } from './gallery';
 import './cloud-admin.css';
 
 const emptyProduct = (): Product => ({
   id:crypto.randomUUID(), sku:'', name:'', nameEn:'', category:'', installation:'', watt:0,
   cct:3000, lumens:0, cri:80, ip:'IP20', beam:36, image:'', description:'',
-  status:'available', visible:false
+  status:'available', visible:false, gallery:[]
 });
 type Stage = 'checking' | 'login' | 'denied' | 'ready';
 type QuoteStatus = 'new' | 'in_review' | 'responded' | 'closed';
@@ -126,11 +127,12 @@ export default function CloudAdmin() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !draft || busy || uploading) return;
+    if (productImages(draft).length >= MAX_PRODUCT_IMAGES) {setError('الحد الأقصى خمس صور. أزل صورة من المعرض أولًا.');return;}
     setUploading(true);setError('');setImageInfo('');
     try {
       const imageUrl = await uploadCorporateProductImage(file);
-      setDraft(current=>current?{...current,image:imageUrl}:current);
-      setImageInfo('رُفعت الصورة إلى مساحة Saeed الجديدة. اضغط «حفظ المنتج» لربطها بالمنتج.');
+      setDraft(current=>current?addProductImage(current,imageUrl):current);
+      setImageInfo('رُفعت الصورة إلى مساحة Saeed الجديدة وأضيفت للمعرض مؤقتًا. اضغط «حفظ المنتج» لتسجيل التغيير.');
     } catch(err) {
       setError(err instanceof Error ? err.message : 'تعذر رفع الصورة.');
     } finally {setUploading(false);}
@@ -170,8 +172,25 @@ export default function CloudAdmin() {
           <input id="corp-product-image-file" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy||uploading} onChange={e=>void onImageChange(e)}/>
           {uploading && <p role="status">جارٍ رفع الصورة إلى مساحة الشركة الجديدة…</p>}
           {imageInfo && <p role="status" className="cloud-upload-success">{imageInfo}</p>}
-          {draft.image && <img className="cloud-image-preview" src={draft.image} alt={'معاينة صورة '+draft.name}/>}
-          <p className="cloud-note">هذه الصور ستكون عامة للزوار بعد نشر المنتج. لا ترفع مستندات سرية أو صور عملاء. يُنشأ لكل صورة اسم فريد ولا يُستبدل الملف القديم تلقائيًا.</p>
+          <div className="cloud-gallery-title">صور المنتج ({productImages(draft).length} / {MAX_PRODUCT_IMAGES})</div>
+          <div className="cloud-gallery-images">
+            {productImages(draft).map((src,i)=><div className="cloud-gallery-item" key={src}>
+              <img src={src} alt={'معاينة الصورة '+(i+1)} loading="lazy"/>
+              <div className="cloud-gallery-controls">
+                {i===0 ? <span className="cloud-primary-label">الرئيسية</span> :
+                  <button type="button" className="cloud-link" disabled={busy||uploading} onClick={()=>{
+                    setDraft(current=>current?setPrimaryImage(current,src):current);
+                    setImageInfo('تم تغيير الصورة الرئيسية مبدئيًا. اضغط حفظ المنتج لاعتمادها.');
+                  }}>تعيين رئيسية</button>}
+                <button type="button" className="cloud-link cloud-danger" disabled={busy||uploading}
+                  onClick={()=>{
+                    setDraft(current=>current?unlinkProductImage(current,src):current);
+                    setImageInfo('أُزيل الرابط من معرض المنتج مبدئيًا. الملف نفسه محفوظ في Storage.');
+                  }}>إزالة من المعرض</button>
+              </div>
+            </div>)}
+          </div>
+          <p className="cloud-note">الحد الأقصى 5 صور، وأول صورة هي الرئيسية. هذه الصور عامة على الإنترنت. إزالة صورة من المعرض لا تحذف ملفها من Storage. لا ترفع صور عملاء أو مستندات خاصة.</p>
         </div>
         <label className="cloud-check"><input type="checkbox" checked={draft.visible} onChange={e=>update('visible',e.target.checked)}/> إظهار المنتج للعامة</label>
         <div className="cloud-actions"><button className="cloud-btn" disabled={busy||uploading} onClick={()=>void saveProduct()}>حفظ المنتج في Supabase</button><button className="cloud-btn cloud-muted" disabled={busy||uploading} onClick={()=>{setDraft(null);setImageInfo("");}}>إلغاء</button></div>
