@@ -11,6 +11,10 @@ const emptyProduct = (): Product => ({
   status:'available', visible:false
 });
 type Stage = 'checking' | 'login' | 'denied' | 'ready';
+type QuoteStatus = 'new' | 'in_review' | 'responded' | 'closed';
+type QuoteRow = { id:string;customer_name:string;customer_contact:string;company_name:string;message:string;items:unknown;status:QuoteStatus;created_at:string };
+const quoteLabels:Record<QuoteStatus,string> = {new:'جديد',in_review:'قيد المراجعة',responded:'تم الرد',closed:'مغلق'};
+const quoteStatuses:QuoteStatus[] = ['new','in_review','responded','closed'];
 const genericError = 'تعذرت العملية. تحقق من اتصال قاعدة البيانات وصلاحيات حسابك.';
 export default function CloudAdmin() {
   const [stage,setStage] = useState<Stage>('checking');
@@ -19,6 +23,7 @@ export default function CloudAdmin() {
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [products,setProducts] = useState<Product[]>([]);
+  const [quotes,setQuotes] = useState<QuoteRow[]>([]);
   const [settings,setSettings] = useState<BrandSettings>(defaultSettings);
   const [published,setPublished] = useState(false);
   const [draft,setDraft] = useState<Product|null>(null);
@@ -34,12 +39,14 @@ export default function CloudAdmin() {
   }
   async function reload() {
     if (!cloudClient) return;
-    const [p,b] = await Promise.all([
+    const [p,b,q] = await Promise.all([
       cloudClient.from('corp_products').select(productColumns).order('sku').limit(1000),
-      cloudClient.from('corp_business_info').select(businessColumns).eq('singleton',true).maybeSingle()
+      cloudClient.from('corp_business_info').select(businessColumns).eq('singleton',true).maybeSingle(),
+      cloudClient.from('corp_quote_requests').select('id,customer_name,customer_contact,company_name,message,items,status,created_at').order('created_at',{ascending:false}).limit(100)
     ]);
-    if (p.error || b.error) { setStage('denied'); setError(genericError); return; }
+    if (p.error || b.error || q.error) { setStage('denied'); setError(genericError); return; }
     setProducts(((p.data ?? []) as ProductRow[]).map(fromProductRow));
+    setQuotes((q.data ?? []) as QuoteRow[]);
     setSettings(b.data ? fromBusinessRow(b.data as BusinessRow) : defaultSettings);
     setPublished(Boolean(b.data?.is_published));
     setStage('ready');
@@ -49,7 +56,7 @@ export default function CloudAdmin() {
     void checkIdentity().catch(()=>{if(active){setStage('login');setError(genericError);}});
     const {data:{subscription}}=cloudClient?.auth.onAuthStateChange((event)=>{
       if (!active) return;
-      if (event === 'SIGNED_OUT') {setProducts([]);setDraft(null);setStage('login');}
+      if (event === 'SIGNED_OUT') {setProducts([]);setQuotes([]);setDraft(null);setStage('login');}
       // Token refresh and membership checks are enforced by RLS on every query.
     }) ?? {data:{subscription:{unsubscribe(){}}}};
     return ()=>{active=false;subscription.unsubscribe();};
@@ -68,7 +75,7 @@ export default function CloudAdmin() {
   }
   async function signOut() {
     await cloudClient?.auth.signOut();
-    setProducts([]);setDraft(null);setStage('login');setError('');
+    setProducts([]);setQuotes([]);setDraft(null);setStage('login');setError('');
   }
   async function saveProduct() {
     if (!cloudClient || !draft || busy) return;
@@ -76,8 +83,8 @@ export default function CloudAdmin() {
     if (issues.length) {setError(issues.join('، '));return;}
     setBusy(true);setError('');
     try {
-      const {error:saveError} = await cloudClient.from('corp_products').upsert(toProductRow(draft),{onConflict:'id'});
-      if(saveError) throw saveError;
+      const {data:saved,error:saveError} = await cloudClient.from('corp_products').upsert(toProductRow(draft),{onConflict:'id'}).select('id').single();
+      if(saveError || !saved || saved.id!==draft.id) throw saveError ?? new Error('Product was not saved');
       setDraft(null);await reload();
     }catch {setError(genericError);} finally {setBusy(false);}
   }
@@ -85,8 +92,8 @@ export default function CloudAdmin() {
     if (!cloudClient || busy || !confirm('حذف المنتج '+p.name+' نهائيًا؟')) return;
     setBusy(true);setError('');
     try {
-      const {error:deleteError} = await cloudClient.from('corp_products').delete().eq('id',p.id);
-      if(deleteError) throw deleteError;
+      const {data:deleted,error:deleteError} = await cloudClient.from('corp_products').delete().eq('id',p.id).select('id').single();
+      if(deleteError || !deleted || deleted.id!==p.id) throw deleteError ?? new Error('Product was not deleted');
       await reload();
     }catch{setError(genericError);}finally{setBusy(false);}
   }
@@ -95,10 +102,21 @@ export default function CloudAdmin() {
     if(!confirm(published ? 'نشر بيانات الشركة الحالية للزوار؟' : 'حفظ البيانات مع إبقائها غير منشورة؟')) return;
     setBusy(true);setError('');
     try {
-      const {error:saveError} = await cloudClient.from('corp_business_info').upsert(toBusinessRow(settings,published),{onConflict:'singleton'});
-      if(saveError) throw saveError;
+      const {data:saved,error:saveError} = await cloudClient.from('corp_business_info').upsert(toBusinessRow(settings,published),{onConflict:'singleton'}).select('singleton').single();
+      if(saveError || !saved || saved.singleton!==true) throw saveError ?? new Error('Settings were not saved');
       await reload();
     }catch{setError(genericError);}finally{setBusy(false);}
+  }
+  async function updateQuoteStatus(id:string,status:QuoteStatus) {
+    if (!cloudClient || busy || !quoteStatuses.includes(status)) return;
+    setBusy(true);setError('');
+    try {
+      const {data:updated,error:updateError}=await cloudClient.from('corp_quote_requests')
+        .update({status}).eq('id',id).select('id,status').single();
+      if(updateError || !updated || updated.id!==id || updated.status!==status)
+        throw updateError ?? new Error('Quote status was not updated');
+      await reload();
+    } catch {setError(genericError);} finally {setBusy(false);}
   }
   const update = <K extends keyof Product>(key:K,value:Product[K]) => setDraft(p=>p?{...p,[key]:value}:p);
   const settingsUpdate = <K extends keyof BrandSettings>(key:K,value:BrandSettings[K]) => setSettings(p=>({...p,[key]:value}));
@@ -118,6 +136,10 @@ export default function CloudAdmin() {
       <div className="cloud-panel"><div className="cloud-section-head"><h2>إدارة المنتجات <small>({products.length})</small></h2><button className="cloud-btn" onClick={()=>{setDraft(emptyProduct());setError('');}}>+ إضافة منتج</button></div>
       <div className="cloud-table-wrap"><table><thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>النشر</th><th>الإجراءات</th></tr></thead><tbody>{products.map(p=><tr key={p.id}><td dir="ltr">{p.sku}</td><td>{p.name}</td><td>{p.category}</td><td>{p.visible?'ظاهر':'مخفي'}</td><td><button className="cloud-link" onClick={()=>{setDraft({...p});setError('');}}>تعديل</button><button className="cloud-link cloud-danger" disabled={busy} onClick={()=>void deleteProduct(p)}>حذف</button></td></tr>)}</tbody></table>
       {products.length===0&&<p>لا توجد منتجات في القاعدة الجديدة. لا تُنقل منتجات المشروع القديم تلقائيًا.</p>}</div></div>
+      <section className="cloud-panel"><div className="cloud-section-head"><h2>طلبات عروض الأسعار <small>({quotes.length})</small></h2><button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void reload()}>تحديث الطلبات</button></div>
+        <p className="cloud-note">تظهر آخر 100 طلب فقط، وهي بيانات خاصة بالمدير المعتمد. استقبال الطلبات من العملاء غير مفعل حتى إنشاء نقطة إرسال آمنة والتحقق من إساءة الاستخدام.</p>
+        {quotes.length===0 ? <p>لا توجد طلبات مسجلة في قاعدة الموقع الجديدة.</p> : <div className="cloud-table-wrap"><table><thead><tr><th>العميل</th><th>التواصل</th><th>تاريخ الطلب</th><th>الأصناف</th><th>الحالة</th></tr></thead><tbody>{quotes.map(q=><tr key={q.id}><td><strong>{q.customer_name}</strong><div>{q.company_name}</div>{q.message && <details><summary>رسالة العميل</summary><p className="cloud-message">{q.message}</p></details>}</td><td dir="ltr">{q.customer_contact}</td><td>{new Date(q.created_at).toLocaleDateString('ar-SA')}</td><td>{Array.isArray(q.items) ? q.items.length : '—'}</td><td><select aria-label={'حالة طلب '+q.customer_name} value={q.status} disabled={busy} onChange={e=>void updateQuoteStatus(q.id,e.target.value as QuoteStatus)}>{quoteStatuses.map(status=><option key={status} value={status}>{quoteLabels[status]}</option>)}</select></td></tr>)}</tbody></table></div>}
+      </section>
       <section className="cloud-panel"><h2>الهوية ومعلومات الشركة</h2><div className="cloud-fields">
         {([['name','الاسم التجاري'],['commercialRegistration','السجل التجاري'],['taxNumber','الرقم الضريبي'],['phone','الهاتف'],['whatsapp','رقم واتساب الدولي'],['heroTitle','عنوان الواجهة'],['heroDescription','وصف الواجهة']] as const).map(([key,label])=><label key={key}>{label}<input value={String(settings[key])} onChange={e=>settingsUpdate(key,e.target.value)}/></label>)}
       </div><label className="cloud-check"><input type="checkbox" checked={published} onChange={e=>setPublished(e.target.checked)}/> نشر معلومات الشركة للزوار</label>
