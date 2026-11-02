@@ -28,6 +28,11 @@ jobs:
         run: npm run typecheck
       - name: Logic tests
         run: npm run test:core
+      - name: Check Saeed public RLS with actual Supabase API
+        env:
+          VITE_CORP_SUPABASE_URL: ${{ vars.CORP_SUPABASE_URL || 'https://afrvoshsiqartsketiuv.supabase.co' }}
+          VITE_CORP_SUPABASE_PUBLISHABLE_KEY: ${{ vars.CORP_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_0fyTTziF-9PaGtp--sxn1w_qQtJe93i' }}
+        run: node tests/cloud-public-smoke.mjs
       - name: Build production app
         run: npm run build
       - name: Verify no service credentials
