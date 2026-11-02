@@ -1,0 +1,50 @@
+name: Verify independent corporate cloud admin
+on:
+  push:
+    branches: [feature/cloud-admin-v04]
+  pull_request:
+    paths:
+      - 'react-app/**'
+      - 'database/**'
+      - '.github/workflows/cloud-admin-check.yml'
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: react-app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Refresh pinned dependency lockfile on development branch
+        if: github.event_name == 'push'
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit new lockfile only on development branch
+        if: github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add react-app/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Lock Supabase SDK and dependencies for cloud admin"
+            git push origin HEAD:feature/cloud-admin-v04
+          fi
+      - name: Install pinned packages
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test:core
+      - name: Build production app
+        run: npm run build
+      - name: Ensure credentials absent
+        run: |
+          if grep -r -E 'sb_secret_|service_role[[:space:]]*=' src; then exit 1; fi
+          test -f dist/index.html

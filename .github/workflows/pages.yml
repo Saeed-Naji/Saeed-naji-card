@@ -34,6 +34,9 @@ jobs:
         run: npm run test:core
       - name: Build React
         working-directory: react-app
+        env:
+          VITE_CORP_SUPABASE_URL: ${{ vars.CORP_SUPABASE_URL }}
+          VITE_CORP_SUPABASE_PUBLISHABLE_KEY: ${{ vars.CORP_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Validate corporate static subpages
         run: node tests/static-pages.mjs
