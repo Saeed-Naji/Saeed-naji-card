@@ -68,20 +68,26 @@ Deno.serve(async(req:Request)=>{
   const origin=req.headers.get('origin')??'';
   const cors:Record<string,string>={
     'Access-Control-Allow-Origin':origin,
-    'Access-Control-Allow-Methods':'POST, OPTIONS',
+    'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info',
     'Vary':'Origin'
   };
   if(!ALLOWED_ORIGINS.has(origin))return new Response('Forbidden',{status:403});
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
-  if(req.method!=='POST')return errResponse('method_not_allowed',405,cors);
+  if(req.method!=='GET'&&req.method!=='POST')return errResponse('method_not_allowed',405,cors);
 
-  // Fail closed until the site owner configures a REAL Turnstile Secret Key.
+  // Do not leak secret values or accept customer data until the REAL Turnstile secret is set.
   const turnstileSecret=Deno.env.get('TURNSTILE_SECRET_KEY')??'';
   const projectUrl=Deno.env.get('SUPABASE_URL')??'';
   const serviceKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'';
-  if(!turnstileSecret||!serviceKey||new URL(projectUrl||'https://invalid.example').hostname!=='afrvoshsiqartsketiuv.supabase.co')
-    return errResponse('not_configured',503,cors);
+  const expectedProject=projectUrl==='https://afrvoshsiqartsketiuv.supabase.co' ||
+    projectUrl==='https://afrvoshsiqartsketiuv.supabase.co/';
+  const configured=Boolean(turnstileSecret&&serviceKey&&expectedProject);
+  // Operational readiness only. This does NOT prove a configured Turnstile secret is valid.
+  if(req.method==='GET')return new Response(JSON.stringify({configured}),{
+    status:200,headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}
+  });
+  if(!configured)return errResponse('not_configured',503,cors);
   if(!(req.headers.get('content-type')??'').toLowerCase().startsWith('application/json'))
     return errResponse('invalid_input',415,cors);
   let body:unknown;

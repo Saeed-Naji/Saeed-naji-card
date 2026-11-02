@@ -28,10 +28,21 @@ export function QuoteRequestDialog({cart,onClose,onSubmitted}:{
   const [token,setToken]=useState('');
   const [error,setError]=useState('');
   const [sending,setSending]=useState(false);
+  const [intakeState,setIntakeState]=useState<'checking'|'configured'|'offline'>(siteKey?'checking':'offline');
   const slot=useRef<HTMLDivElement>(null);
   const widget=useRef<string|null>(null);
   useEffect(()=>{
-    if(!siteKey||!cloudClient)return;
+    if(!siteKey||!cloudClient){setIntakeState('offline');return;}
+    let active=true;
+    void cloudClient.functions.invoke('corp-submit-quote',{method:'GET'})
+      .then(({data,error})=>{
+        if(active)setIntakeState(!error&&data?.configured===true?'configured':'offline');
+      })
+      .catch(()=>{if(active)setIntakeState('offline');});
+    return ()=>{active=false;};
+  },[]);
+  useEffect(()=>{
+    if(!siteKey||!cloudClient||intakeState!=='configured')return;
     let active=true;
     const render=()=>{
       if(!active||!slot.current||!window.turnstile||widget.current)return;
@@ -51,10 +62,10 @@ export function QuoteRequestDialog({cart,onClose,onSubmitted}:{
       script?.removeEventListener('load',render);
       if(widget.current){try{window.turnstile?.remove(widget.current);}catch{ /* already removed */ }widget.current=null;}
     };
-  },[]);
+  },[intakeState]);
   async function submit(event:React.FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!secureQuoteFormConfigured||!cloudClient||sending)return;
+    if(!secureQuoteFormConfigured||intakeState!=='configured'||!cloudClient||sending)return;
     setError('');
     let payload;
     try{payload=prepareQuoteSubmission(name,contact,company,message,cart,accepted,token);}
@@ -81,10 +92,13 @@ export function QuoteRequestDialog({cart,onClose,onSubmitted}:{
       <div className="quote-form-head"><div><span>REQUEST FOR QUOTATION</span><h2>إرسال طلب عرض سعر</h2><p>{cart.length} من المنتجات المحددة</p></div>
         <button type="button" aria-label="إغلاق" disabled={sending} onClick={onClose}>×</button>
       </div>
-      {!secureQuoteFormConfigured||!cloudClient?
-        <div className="quote-form-off"><strong>استقبال الطلبات عبر الموقع لم يُفعّل بعد.</strong>
-          <p>يحتاج تشغيله إلى تهيئة Cloudflare Turnstile والتحقق من حماية الإرسال. يمكنك الاحتفاظ بقائمة طلبك أو تصديرها إلى Excel.</p>
-          <button className="button outline" type="button" onClick={onClose}>العودة لقائمة الطلب</button></div>:
+      {!secureQuoteFormConfigured||!cloudClient||intakeState!=='configured'?
+        <div className="quote-form-off" role="status">
+          <strong>{intakeState==='checking'?'جارٍ فحص جاهزية استقبال الطلبات…':'استقبال الطلبات عبر الموقع لم يُفعّل بعد.'}</strong>
+          <p>{intakeState==='checking'?'نتحقق من إعدادات خادم Saeed دون إرسال أي بيانات من قائمة الطلب.':
+            'يلزم إعداد المفتاح العام لـ Cloudflare Turnstile في GitHub والمفتاح السري في Supabase، ثم اختبارهما. يمكنك الاحتفاظ بقائمة طلبك أو تصديرها إلى Excel.'}</p>
+          <button className="button outline" type="button" onClick={onClose}>العودة لقائمة الطلب</button>
+        </div>:
         <form onSubmit={e=>void submit(e)} className="quote-form-fields">
           <label>اسمك <span aria-hidden="true">*</span><input autoComplete="name" required maxLength={120} value={name} onChange={e=>setName(e.target.value)} placeholder="الاسم الكامل"/></label>
           <label>رقم الجوال أو البريد الإلكتروني <span aria-hidden="true">*</span><input autoComplete="email" required maxLength={160} value={contact} onChange={e=>setContact(e.target.value)} placeholder="وسيلة التواصل للرد على طلبك"/></label>

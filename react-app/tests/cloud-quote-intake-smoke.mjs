@@ -10,9 +10,16 @@ const opts=await fetch(endpoint,{method:'OPTIONS',headers:common,signal:AbortSig
 assert.equal(opts.status,204,'Expected CORS preflight for official Saeed website');
 assert.equal(opts.headers.get('access-control-allow-origin'),'https://saeed-naji.github.io');
 const get=await fetch(endpoint,{method:'GET',headers:common,signal:AbortSignal.timeout(15000)});
-assert.equal(get.status,405,'Only POST is allowed');
+assert.equal(get.status,200,'GET should return a non-secret readiness response');
+assert.equal(get.headers.get('access-control-allow-origin'),'https://saeed-naji.github.io');
+const readiness=await get.json();
+assert.equal(typeof readiness.configured,'boolean');
+assert.deepEqual(Object.keys(readiness),['configured'],'Do not return secrets or internal configuration in health response');
+console.log('INFO: Saeed quote configuration present:',readiness.configured);
+const invalidMethod=await fetch(endpoint,{method:'PUT',headers:common,signal:AbortSignal.timeout(15000)});
+assert.equal(invalidMethod.status,405,'Unsupported methods must be denied');
 const denied=await fetch(endpoint,{method:'POST',headers:common,body:JSON.stringify({}),signal:AbortSignal.timeout(15000)});
 assert.ok([400,503].includes(denied.status),`Invalid quote unexpectedly accepted: ${denied.status}`);
 const obj=await denied.json();
 assert.equal(obj.ok,false);
-console.log('PASS: production quote Edge Function CORS, method restrictions and rejection of unauthenticated/invalid submission');
+console.log('PASS: production quote Edge Function readiness, CORS, method restrictions and invalid submission rejection');
