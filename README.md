@@ -1,38 +1,52 @@
-# FLOWER LIGHT — الموقع المؤسسي التجريبي
+# FLOWER LIGHT — الموقع المؤسسي المستقل
 
-هذا المستودع مستقل عن مشروع `Basair-Alkhalij/Flower-light` وقاعدته القديمة. ويحتوي الآن **معاينة HTML/CSS/JavaScript متعددة الصفحات** للموقع المؤسسي، وليست بعد تطبيق React + TypeScript v0.3 الكامل.
+![Build status](https://github.com/Saeed-Naji/Saeed-naji-card/actions/workflows/pages.yml/badge.svg)
 
-## روابط المعاينة
+**رابط المعاينة:** https://saeed-naji.github.io/Saeed-naji-card/
 
-بعد نجاح GitHub Pages في تبويب Actions:
+هذا مشروع جديد ومستقل تمامًا عن `Basair-Alkhalij/Flower-light` ومشروع Supabase القديم.
 
-- [الرئيسية والكتالوج](https://saeed-naji.github.io/Saeed-naji-card/)
-- [من نحن](https://saeed-naji.github.io/Saeed-naji-card/about.html)
-- [الخدمات](https://saeed-naji.github.io/Saeed-naji-card/services.html)
-- [المشاريع](https://saeed-naji.github.io/Saeed-naji-card/projects.html)
-- [التواصل](https://saeed-naji.github.io/Saeed-naji-card/contact.html)
+## ما تم نشره
 
-## ما يعمل في المعاينة
+أصبح الموقع منشورًا عبر **React 19 + TypeScript + Vite**، وليس نسخة HTML المؤقتة السابقة، مع الاحتفاظ بالصفحات المؤسسية المنفصلة:
 
-- تصميم مؤسسي عربي RTL متجاوب مع الهاتف والحاسوب.
-- صفحات مستقلة، وروابط تنقل بين الصفحات.
-- بحث في منتجات توضيحية حسب الاسم والكود والفئة.
-- إضافة أصناف إلى قائمة طلب السعر، تعديل الكمية أو حذف الصنف، وحفظ القائمة داخل المتصفح محليًا فقط.
-- تصدير المنتجات أو قائمة الطلب إلى **CSV تجريبي**، وليس XLSX في هذه النسخة المنشورة.
-- معاينة داتا شيت توضيحية قابلة للطباعة أو حفظ PDF من نافذة المتصفح.
-- لا يوجد إرسال طلبات أو جمع بيانات شخصية عبر الخادم.
-- فحص الصفحات والروابط تلقائيًا قبل كل عملية نشر.
+- الرئيسية والكتالوج: https://saeed-naji.github.io/Saeed-naji-card/
+- من نحن: https://saeed-naji.github.io/Saeed-naji-card/about.html
+- الخدمات: https://saeed-naji.github.io/Saeed-naji-card/services.html
+- المشاريع: https://saeed-naji.github.io/Saeed-naji-card/projects.html
+- التواصل: https://saeed-naji.github.io/Saeed-naji-card/contact.html
 
-## الأمان والخصوصية
+وظائف المعاينة: بحث وفلاتر تابعة، قائمة طلبات بكميات تُكتب يدويًا، تصدير Excel أصلي XLSX، معاينة داتا شيت والطباعة أو حفظ PDF عبر المتصفح، والتخزين المحلي لقائمة الطلب فقط.
 
-هذه نسخة **DEMO**؛ جميع أسماء الأصناف والمواصفات توضيحية. صفحات المشاريع تصورات وليست أعمالًا منفذة. صفحة التواصل شكلية ولا ترسل شيئًا، ولا توجد قاعدة بيانات أو حسابات مدير. جميع الصفحات مضبوطة `noindex,nofollow` ريثما يتم اعتماد المحتوى الرسمي. لا تدخل معلومات شخصية أو تعتمد هذه المواصفات لأعمال هندسية فعلية.
+**البيانات والشهادات والمشاريع والصور هي للتوضيح وغير معتمدة.** بعض الصفحات لا تستقبل نماذج تواصل، والطلبات لا تصل إلى شركة تلقائيًا. بيانات الشركة الرسمية لم تُعتمد في المشروع الجديد.
 
-## آلية النشر
+## بنية المشروع
 
-`.github/workflows/pages.yml` يتحقق من الصفحات عن طريق `node tests/static-pages.mjs` ثم ينشر فقط HTML وCSS العامة إلى GitHub Pages. مصدر Pages يجب أن يكون **GitHub Actions**.
+- `react-app/`: مصدر React/TypeScript وVite واختبارات منطق الكتالوج وتصدير XLSX.
+- `about.html`, `services.html`, `projects.html`, `contact.html`: صفحات مؤسسية.
+- `pages.css`: تنسيق الصفحات المستقلة.
+- `database/SCHEMA_PROPOSAL_NOT_APPLIED.sql`: **تصميم فقط** لقاعدة Supabase مستقلة، لم يُشغّل.
+- `.github/workflows/pages.yml`: تثبيت التبعيات المغلقة واختبارات React ثم النشر.
+- `tests/static-pages.mjs`: فحص روابط الصفحات وملفاتها.
 
-## الخطوة الهندسية التالية
+## التشغيل المحلي
 
-ترحيل ملفات React/TypeScript v0.3 إلى هذا المستودع، مع إعداد Vite وقفل التبعيات واختبارات البناء على GitHub Actions. **لا تتيح لوحة الإدارة التجريبية غير المؤمنة على الإنترنت.** عند تطوير لوحة إنتاجية جديدة، استخدم مشروع Supabase مستقلًا وصلاحيات Auth/RLS صحيحة، واعتماد بيانات الشركة والمنتجات الحقيقية قبل الإنتاج.
+```bash
+cd react-app
+npm ci
+npm run typecheck
+npm run test:core
+npm run build
+npm run dev
+```
 
-ملاحظة: النشر الحالي لا يُعد دمجًا أو ترقية تلقائية لحزمة React/TypeScript الموجودة خارج المستودع.
+تعمل واجهة `?admin=preview` **في بيئة التطوير Vite فقط**، ولا تُفعّل على GitHub Pages. هي محرر محتوى محلي غير مؤمّن، وليست لوحة إدارة إنتاجية.
+
+## ما لم يُفعّل بعد
+
+- تسجيل دخول المدير الحقيقي وصلاحيات Supabase RLS.
+- حفظ المنتجات والإعدادات والطلبات في قاعدة بيانات سحابية.
+- استقبال الطلبات عن طريق Edge Function مؤمنة بالتحقق والحد من إساءة الاستخدام.
+- اعتماد المنتجات والمواصفات الرسمية واختبارات المتصفح والجوال الكاملة.
+
+**مهم:** قاعدة Supabase القديمة ومشروع Flower Light القديم لم يُمسّا، ولم يتم تطبيق أي SQL أو نشر مفاتيح سرية.
