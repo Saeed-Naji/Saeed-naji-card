@@ -1,0 +1,21 @@
+.quote-form-backdrop{position:fixed;inset:0;z-index:130;background:#102632b8;display:grid;place-items:center;padding:12px;overflow:auto}
+.quote-form-dialog{width:min(620px,100%);max-height:95vh;overflow:auto;background:#fff;border-radius:8px;box-shadow:0 30px 80px #081b2850;color:#193746}
+.quote-form-head{padding:21px 25px;background:#173746;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.quote-form-head span{font:700 11px Manrope,Arial,sans-serif;color:#debe87;letter-spacing:.12em}
+.quote-form-head h2{margin:5px 0;font-size:22px}.quote-form-head p{margin:0;font-size:12px;color:#c2d1d9}
+.quote-form-head button{background:none;color:white;border:1px solid #ffffff45;font-size:26px;line-height:1;width:36px;height:36px;border-radius:4px}
+.quote-form-fields{padding:22px 25px;display:grid;gap:13px}
+.quote-form-fields>label:not(.quote-consent){display:grid;gap:5px;font-size:13px;font-weight:700}
+.quote-form-fields input:not([type=checkbox]),.quote-form-fields textarea{border:1px solid #cdd9de;border-radius:4px;background:#fff;color:#193746;padding:10px 12px;width:100%;font:inherit;font-size:14px}
+.quote-form-fields textarea{resize:vertical;line-height:1.8}
+.quote-form-fields>label>span{color:#af6747}
+.quote-consent{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.9}
+.quote-consent input{margin-top:5px;width:17px;height:17px;flex:none}
+.quote-security{min-height:65px;max-width:100%;overflow:hidden}
+.quote-form-error{color:#a32121;background:#fff0f0;border:1px solid #f0cece;padding:10px;border-radius:4px;font-size:12px}
+.quote-form-actions{display:flex;gap:9px;flex-wrap:wrap}
+.quote-form-actions button:disabled{opacity:.5;cursor:wait}
+.quote-form-fields>small{color:#748893;font-size:11px;line-height:1.9}
+.quote-form-off{padding:26px;line-height:2;color:#394f5a}
+.quote-form-off strong{font-size:16px}.quote-form-off p{color:#73858e;font-size:13px;margin:8px 0 20px}
+@media(max-width:600px){.quote-form-head,.quote-form-fields{padding:16px}.quote-form-head h2{font-size:19px}.quote-form-dialog{max-height:97vh}.quote-form-actions button{flex:1}}

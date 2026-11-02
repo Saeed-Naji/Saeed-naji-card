@@ -7,6 +7,7 @@ import { downloadSnapshot, makeSnapshot, parseSnapshot } from './portable';
 import './styles.css';
 import CloudAdmin from './cloud-admin';
 import { productImages } from './gallery';
+import { QuoteRequestDialog } from './quote-form';
 import { cloudEnabled, readPublicCatalog } from './cloud';
 
 const statusLabels: Record<Product['status'],string> = {available:'متوفر',soon:'قريبًا',unavailable:'غير متوفر'};
@@ -130,6 +131,7 @@ function App(){
   const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS});
   const [cart,setCart]=useState<CartItem[]>(()=>cloudEnabled?[]:readCart(readProducts()));
   const [cartOpen,setCartOpen]=useState(false);
+  const [quoteOpen,setQuoteOpen]=useState(false);
   const [catalogReady,setCatalogReady]=useState(!cloudEnabled);
   const [admin,setAdmin]=useState(adminMode);
   const [printProduct,setPrintProduct]=useState<Product|null>(null);
@@ -172,7 +174,10 @@ function App(){
   <footer className="site-footer"><div className="container"><Logo/><span>© {new Date().getFullYear()} FLOWER LIGHT · جميع الحقوق محفوظة</span><span>نسخة تطوير مستقلة — محتوى تجريبي</span></div></footer>
   {cartOpen&&<div className="drawer-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}><aside className="quote-drawer" role="dialog" aria-modal="true" aria-labelledby="cartHeading"><div className="drawer-header"><div><h2 id="cartHeading">قائمة طلب السعر</h2><p>{cartItems.length} من 30 صنفًا</p></div><button type="button" className="icon-button" aria-label="إغلاق القائمة" onClick={()=>setCartOpen(false)}>×</button></div>
   {cartItems.length?<div className="drawer-items">{cartItems.map(({p,quantity})=><div className="drawer-item" key={p.id}><div><strong>{p.name}</strong><small dir="ltr">{p.sku}</small></div><QuantityControl product={p} quantity={quantity} onCart={onCart}/><button className="remove-item" type="button" onClick={()=>onCart(p,0)}>حذف</button></div>)}</div>:<div className="drawer-empty">اختر منتجات من الكتالوج لإضافتها إلى طلبك.</div>}
-  <div className="drawer-footer"><button className="button outline" type="button" disabled={!cartItems.length} onClick={()=>saveExcel(exportQuoteExcel(cart,products),'flower-light-quote.xlsx')}>تصدير الطلب Excel</button><button className="button gold" type="button" disabled={!cartItems.length} onClick={checkout}>إرسال عبر واتساب</button><small>لا يتم إرسال أي شيء إلا عند الضغط على زر واتساب.</small></div></aside></div>}
+  <div className="drawer-footer"><button className="button outline" type="button" disabled={!cartItems.length} onClick={()=>saveExcel(exportQuoteExcel(cart,products),'flower-light-quote.xlsx')}>تصدير الطلب Excel</button><button className="button gold" type="button" disabled={!cartItems.length} onClick={checkout}>إرسال عبر واتساب</button>
+    {cloudEnabled && <button className="button primary" type="button" disabled={!cartItems.length} onClick={()=>{setCartOpen(false);setQuoteOpen(true);}}>طلب عرض سعر من الموقع</button>}
+    <small>لا تُرسل معلومات التواصل أو قائمة المنتجات إلى الشركة إلا عند تأكيد الإرسال في نموذج الطلب.</small></div></aside></div>}
+  {quoteOpen && <QuoteRequestDialog cart={cart} onClose={()=>setQuoteOpen(false)} onSubmitted={()=>{setCart([]);setQuoteOpen(false);setNotice('تم استلام طلب عرض السعر. ستتواصل معك الشركة عبر وسيلة التواصل التي أدخلتها.');}}/>}
   {printProduct&&<div className="print-preview-overlay" role="dialog" aria-modal="true" aria-label="معاينة ورقة المواصفات الفنية"><div className="print-preview-top"><strong>معاينة الداتا شيت — {printProduct.sku}</strong><span>اختر «حفظ كملف PDF» من وجهة الطباعة</span><button type="button" className="button primary" onClick={()=>window.print()}>طباعة / حفظ PDF</button><button type="button" className="button outline" onClick={()=>setPrintProduct(null)}>إغلاق المعاينة</button></div><div className="print-preview-paper"><Datasheet product={printProduct} settings={settings}/></div></div>}
   {notice&&<div role="status" className="toast" onClick={()=>setNotice('')}>{notice}</div>}
   </>;

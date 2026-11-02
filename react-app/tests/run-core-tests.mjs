@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const out=join(root,'tests','.compiled');
 rmSync(out,{recursive:true,force:true});mkdirSync(out,{recursive:true});
-const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts'],{cwd:root,encoding:'utf8'});
+const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts'],{cwd:root,encoding:'utf8'});
 if(compiled.status!==0){console.error(compiled.stdout,compiled.stderr);process.exit(1);}
 writeFileSync(join(out,'package.json'),'{'+'"type":"commonjs"}');
 const require=createRequire(import.meta.url);
@@ -14,6 +14,8 @@ const logic=require(join(out,'logic.js'));
 const exported=require(join(out,'export.js'));
 const portable=require(join(out,'portable.js'));
 const gallery=require(join(out,'gallery.js'));
+const quoteRequest=require(join(out,'quote-request.js'));
+
 const all=logic.demoProducts;
 const same=logic.filterProducts(all,{...logic.EMPTY_FILTERS,category:'داون لايت'});
 assert.equal(same.length,1);assert.equal(same[0].sku,'FL-DL-12');
@@ -71,3 +73,16 @@ assert.throws(()=>gallery.addProductImage(filled,'https://example.com/6.webp'),/
 assert.equal(gallery.productImages(filled).length,5);
 assert.equal(gallery.productImages({...filled,gallery:[...filled.gallery,filled.image]}).length,5);
 console.log('PASS: gallery five-image cap, deduplication, primary selection and safe unlink');
+
+const productId='10000000-0000-4000-8000-000000000001';
+const quoteSample=quoteRequest.prepareQuoteSubmission('   طالب عرض  ','+966 555 111 222','شركة تجريبية','ملاحظات',
+  [{productId,quantity:3}],true,'verylong-valid-captcha-token-0123456789');
+assert.equal(quoteSample.customerName,'طالب عرض');
+assert.deepEqual(quoteSample.items,[{productId,quantity:3}]);
+assert.equal(quoteSample.acceptedPrivacy,true);
+assert.throws(()=>quoteRequest.prepareQuoteSubmission('A','0555555555','','',[{productId,quantity:1}],true,'valid-token-that-is-long-enough'),/اسمًا/);
+assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:1}],false,'valid-token-that-is-long-enough'),/الموافقة/);
+assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:0}],true,'valid-token-that-is-long-enough'),/غير صالحة/);
+assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:1}],true,''),/التحقق الأمني/);
+assert.throws(()=>quoteRequest.prepareQuoteSubmission('شركة','0555555555','','',[{productId,quantity:1},{productId,quantity:2}],true,'valid-token-that-is-long-enough'),/غير صالحة/);
+console.log('PASS: quote validation, consent, product quantities and duplicate prevention');
