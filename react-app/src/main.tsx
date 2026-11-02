@@ -293,7 +293,7 @@ function App(){
     </div>
   </section>
   <section className="rc-section rc-projects" id="projects">
-    <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">PROJECT APPLICATIONS</span><h2>مجالات المشاريع</h2><span className="rc-accent-line" aria-hidden="true"></span><p className="rc-muted">نماذج توضيحية لأنواع المشاريع، وليست أعمالًا منفذة أو تعاقدات فعلية.</p></div><a className="rc-btn rc-btn-outline" href="projects.html">عرض المجالات</a></div>
+    <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">PROJECT APPLICATIONS</span><h2>مجالات المشاريع</h2><span className="rc-accent-line" aria-hidden="true"></span><p className="rc-muted">نماذج توضيحية لأنواع المشاريع، وليست أعمالًا منفذة أو تعاقدات فعلية.</p></div><a className="rc-btn rc-btn-outline" href="projects.html">عرض المجالات</a></div><a className="rc-btn rc-btn-outline" href="projects.html">عرض المجالات</a></div>
       <div className="rc-tile-grid rc-project-grid">
         {[['المباني التجارية','إضاءة واجهات ومساحات العمل','commercial'],['المشاريع السكنية','حلول للمساحات الداخلية','residential'],['الضيافة والمرافق','إضاءة معمارية للمرافق','hospitality'],['المنشآت الصناعية','حلول للمستودعات والمرافق','industrial']].map(([title,desc,style])=>
         <a href="projects.html" className={'rc-project-card rc-project-'+style} key={title}>
@@ -320,7 +320,7 @@ function App(){
   </section>
   </>}
   </main>
-  <footer className="rc-footer"
+  <footer className="rc-footer">
     <div className="container rc-footer-grid">
       <div><a href="./" className="rc-logo rc-footer-logo"><span className="rc-logo-icon">✦</span><span className="rc-logo-caption"><b>{settings.name || 'FLOWER LIGHT'}</b><small>LIGHTING SOLUTIONS</small></span></a>
         <p>موقع مؤسسي لعرض حلول الإنارة والمواصفات الفنية وإعداد طلبات الأسعار. معلومات المشاريع والصور للمعاينة حتى اعتمادها.</p></div>
