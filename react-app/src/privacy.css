@@ -1,0 +1,22 @@
+.privacy-admin .privacy-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;margin:16px 0}
+.privacy-admin .privacy-form-fields label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
+.privacy-admin textarea,.privacy-admin input:not([type=checkbox]){width:100%;font:inherit;background:#fff;color:#193442;border:1px solid #ccdadd;border-radius:4px;padding:10px}
+.privacy-admin textarea{resize:vertical;line-height:1.85}
+.privacy-admin .privacy-form-fields label:has(textarea){grid-column:1/-1}
+.privacy-state{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:11px 13px;background:#f1f6f6;border-radius:4px;font-size:13px}
+.privacy-state a{color:#126278}
+.privacy-approval{padding:14px;background:#f6f8f8;border-radius:6px;margin:12px 0}
+.privacy-success{color:#195d43;font-size:13px}.privacy-error{color:#a52a2a;font-size:13px}
+.privacy-public{min-height:100vh;background:#f6f8f9;color:#193442;font-family:Cairo,Tahoma,Arial,sans-serif}
+.privacy-page-top{background:#173747;padding:17px max(18px,calc((100vw - 1000px)/2));display:flex;justify-content:space-between;gap:15px}
+.privacy-page-top a,.privacy-page-top span{color:#fff;text-decoration:none;font-size:13px}
+.privacy-document{max-width:860px;margin:25px auto 70px;padding:35px;background:#fff;border:1px solid #dee7e9;border-radius:7px}
+.privacy-eyebrow{letter-spacing:.16em;color:#b39565;font:700 11px Arial,sans-serif}
+.privacy-document h1{font-size:30px;line-height:1.5;margin:4px 0 30px}
+.privacy-document h2{font-size:19px;color:#173747}
+.privacy-document section{border-top:1px solid #e4eaec;padding:13px 0}
+.privacy-document p{line-height:2;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.privacy-updated{color:#748891;border-top:1px solid #e4eaec;padding-top:15px}
+.privacy-unpublished{padding:18px;background:#f4f7f8;border-radius:5px}
+.privacy-unpublished a{color:#166d82}
+@media(max-width:660px){.privacy-admin .privacy-form-fields{grid-template-columns:1fr}.privacy-document{padding:20px;margin:12px}.privacy-document h1{font-size:25px}}
