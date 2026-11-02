@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import type { BrandSettings, Product } from './types';
 import { defaultSettings, validateProduct } from './logic';
 import { cloudClient, fromBusinessRow, fromProductRow, productColumns, businessColumns, toBusinessRow, toProductRow } from './cloud';
 import type { BusinessRow, ProductRow } from './cloud';
+import { uploadCorporateProductImage } from './cloud-images';
 import './cloud-admin.css';
 
 const emptyProduct = (): Product => ({
@@ -21,6 +23,8 @@ export default function CloudAdmin() {
   const [email,setEmail] = useState('');
   const [password,setPassword] = useState('');
   const [busy,setBusy] = useState(false);
+  const [uploading,setUploading] = useState(false);
+  const [imageInfo,setImageInfo] = useState('');
   const [error,setError] = useState('');
   const [products,setProducts] = useState<Product[]>([]);
   const [quotes,setQuotes] = useState<QuoteRow[]>([]);
@@ -78,14 +82,14 @@ export default function CloudAdmin() {
     setProducts([]);setQuotes([]);setDraft(null);setStage('login');setError('');
   }
   async function saveProduct() {
-    if (!cloudClient || !draft || busy) return;
+    if (!cloudClient || !draft || busy || uploading) return;
     const issues=validateProduct(draft,products);
     if (issues.length) {setError(issues.join('، '));return;}
     setBusy(true);setError('');
     try {
       const {data:saved,error:saveError} = await cloudClient.from('corp_products').upsert(toProductRow(draft),{onConflict:'id'}).select('id').single();
       if(saveError || !saved || saved.id!==draft.id) throw saveError ?? new Error('Product was not saved');
-      setDraft(null);await reload();
+      setDraft(null);setImageInfo('');await reload();
     }catch {setError(genericError);} finally {setBusy(false);}
   }
   async function deleteProduct(p:Product) {
@@ -118,6 +122,19 @@ export default function CloudAdmin() {
       await reload();
     } catch {setError(genericError);} finally {setBusy(false);}
   }
+  async function onImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !draft || busy || uploading) return;
+    setUploading(true);setError('');setImageInfo('');
+    try {
+      const imageUrl = await uploadCorporateProductImage(file);
+      setDraft(current=>current?{...current,image:imageUrl}:current);
+      setImageInfo('رُفعت الصورة إلى مساحة Saeed الجديدة. اضغط «حفظ المنتج» لربطها بالمنتج.');
+    } catch(err) {
+      setError(err instanceof Error ? err.message : 'تعذر رفع الصورة.');
+    } finally {setUploading(false);}
+  }
   const update = <K extends keyof Product>(key:K,value:Product[K]) => setDraft(p=>p?{...p,[key]:value}:p);
   const settingsUpdate = <K extends keyof BrandSettings>(key:K,value:BrandSettings[K]) => setSettings(p=>({...p,[key]:value}));
   return <main className="cloud-admin" dir="rtl" lang="ar">
@@ -133,8 +150,8 @@ export default function CloudAdmin() {
     </form>}
     {stage==='denied'&&<div className="cloud-panel"><h2>لا تملك صلاحية الإدارة</h2><p>يتطلب الوصول حسابًا معتمدًا في جدول عضويات الإدارة بالمشروع الجديد.</p><button className="cloud-btn" onClick={()=>void signOut()}>تسجيل الخروج</button></div>}
     {stage==='ready'&&<><div className="cloud-toolbar"><span>تم التحقق من عضوية المدير</span><button className="cloud-btn cloud-muted" onClick={()=>void signOut()}>تسجيل الخروج</button></div>
-      <div className="cloud-panel"><div className="cloud-section-head"><h2>إدارة المنتجات <small>({products.length})</small></h2><button className="cloud-btn" onClick={()=>{setDraft(emptyProduct());setError('');}}>+ إضافة منتج</button></div>
-      <div className="cloud-table-wrap"><table><thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>النشر</th><th>الإجراءات</th></tr></thead><tbody>{products.map(p=><tr key={p.id}><td dir="ltr">{p.sku}</td><td>{p.name}</td><td>{p.category}</td><td>{p.visible?'ظاهر':'مخفي'}</td><td><button className="cloud-link" onClick={()=>{setDraft({...p});setError('');}}>تعديل</button><button className="cloud-link cloud-danger" disabled={busy} onClick={()=>void deleteProduct(p)}>حذف</button></td></tr>)}</tbody></table>
+      <div className="cloud-panel"><div className="cloud-section-head"><h2>إدارة المنتجات <small>({products.length})</small></h2><button className="cloud-btn" onClick={()=>{setDraft(emptyProduct());setError('');setImageInfo('');}}>+ إضافة منتج</button></div>
+      <div className="cloud-table-wrap"><table><thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>النشر</th><th>الإجراءات</th></tr></thead><tbody>{products.map(p=><tr key={p.id}><td dir="ltr">{p.sku}</td><td>{p.name}</td><td>{p.category}</td><td>{p.visible?'ظاهر':'مخفي'}</td><td><button className="cloud-link" onClick={()=>{setDraft({...p});setError('');setImageInfo('');}}>تعديل</button><button className="cloud-link cloud-danger" disabled={busy} onClick={()=>void deleteProduct(p)}>حذف</button></td></tr>)}</tbody></table>
       {products.length===0&&<p>لا توجد منتجات في القاعدة الجديدة. لا تُنقل منتجات المشروع القديم تلقائيًا.</p>}</div></div>
       <section className="cloud-panel"><div className="cloud-section-head"><h2>طلبات عروض الأسعار <small>({quotes.length})</small></h2><button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void reload()}>تحديث الطلبات</button></div>
         <p className="cloud-note">تظهر آخر 100 طلب فقط، وهي بيانات خاصة بالمدير المعتمد. استقبال الطلبات من العملاء غير مفعل حتى إنشاء نقطة إرسال آمنة والتحقق من إساءة الاستخدام.</p>
@@ -144,12 +161,20 @@ export default function CloudAdmin() {
         {([['name','الاسم التجاري'],['commercialRegistration','السجل التجاري'],['taxNumber','الرقم الضريبي'],['phone','الهاتف'],['whatsapp','رقم واتساب الدولي'],['heroTitle','عنوان الواجهة'],['heroDescription','وصف الواجهة']] as const).map(([key,label])=><label key={key}>{label}<input value={String(settings[key])} onChange={e=>settingsUpdate(key,e.target.value)}/></label>)}
       </div><label className="cloud-check"><input type="checkbox" checked={published} onChange={e=>setPublished(e.target.checked)}/> نشر معلومات الشركة للزوار</label>
       <button disabled={busy} className="cloud-btn" onClick={()=>void saveSettings()}>حفظ إعدادات الشركة</button></section>
-      {draft&&<div className="cloud-overlay"><section className="cloud-panel cloud-editor" role="dialog" aria-modal="true" aria-label="تحرير المنتج"><div className="cloud-section-head"><h2>{products.some(x=>x.id===draft.id)?'تعديل منتج':'إضافة منتج'}</h2><button className="cloud-btn cloud-muted" onClick={()=>setDraft(null)}>إغلاق</button></div>
+      {draft&&<div className="cloud-overlay"><section className="cloud-panel cloud-editor" role="dialog" aria-modal="true" aria-label="تحرير المنتج"><div className="cloud-section-head"><h2>{products.some(x=>x.id===draft.id)?'تعديل منتج':'إضافة منتج'}</h2><button className="cloud-btn cloud-muted" disabled={uploading||busy} onClick={()=>{setDraft(null);setImageInfo("");}}>إغلاق</button></div>
         <div className="cloud-fields">{([['sku','كود المنتج'],['name','الاسم العربي'],['nameEn','الاسم الإنجليزي'],['category','القسم'],['installation','نوع التركيب'],['ip','IP'],['image','رابط الصورة'],['description','الوصف']] as const).map(([key,label])=><label key={key}>{label}<input maxLength={key==='description'?600:180} value={draft[key]} onChange={e=>update(key,e.target.value)}/></label>)}
         {([['watt','القدرة W'],['cct','حرارة اللون K'],['lumens','لومن'],['cri','CRI'],['beam','زاوية الشعاع']] as const).map(([key,label])=><label key={key}>{label}<input type="number" min="0" value={draft[key]} onChange={e=>update(key,Number(e.target.value))}/></label>)}
         <label>التوفر<select value={draft.status} onChange={e=>update('status',e.target.value as Product['status'])}><option value="available">متوفر</option><option value="soon">قريبًا</option><option value="unavailable">غير متوفر</option></select></label></div>
+        <div className="cloud-upload">
+          <label htmlFor="corp-product-image-file">رفع صورة المنتج من جهازك (JPG / PNG / WebP، بحد أقصى 3 ميغابايت)</label>
+          <input id="corp-product-image-file" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy||uploading} onChange={e=>void onImageChange(e)}/>
+          {uploading && <p role="status">جارٍ رفع الصورة إلى مساحة الشركة الجديدة…</p>}
+          {imageInfo && <p role="status" className="cloud-upload-success">{imageInfo}</p>}
+          {draft.image && <img className="cloud-image-preview" src={draft.image} alt={'معاينة صورة '+draft.name}/>}
+          <p className="cloud-note">هذه الصور ستكون عامة للزوار بعد نشر المنتج. لا ترفع مستندات سرية أو صور عملاء. يُنشأ لكل صورة اسم فريد ولا يُستبدل الملف القديم تلقائيًا.</p>
+        </div>
         <label className="cloud-check"><input type="checkbox" checked={draft.visible} onChange={e=>update('visible',e.target.checked)}/> إظهار المنتج للعامة</label>
-        <div className="cloud-actions"><button className="cloud-btn" disabled={busy} onClick={()=>void saveProduct()}>حفظ المنتج في Supabase</button><button className="cloud-btn cloud-muted" onClick={()=>setDraft(null)}>إلغاء</button></div>
+        <div className="cloud-actions"><button className="cloud-btn" disabled={busy||uploading} onClick={()=>void saveProduct()}>حفظ المنتج في Supabase</button><button className="cloud-btn cloud-muted" disabled={busy||uploading} onClick={()=>{setDraft(null);setImageInfo("");}}>إلغاء</button></div>
       </section></div>}
     </>}
     {error&&<div role="alert" className="cloud-error">{error}</div>}
