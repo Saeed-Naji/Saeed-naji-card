@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { BrandSettings, Product, ProductStatus } from './types';
 import { defaultSettings } from './logic';
+import { productImages } from './gallery';
 
 // Only a NEW, independent project's browser-safe publishable key belongs here.
 // With no configuration, the site keeps the previous demonstration catalog.
@@ -12,7 +13,7 @@ export const cloudClient = cloudEnabled ? createClient(url, key, { auth: { persi
 export type ProductRow = {
   id: string; sku: string; name_ar: string; name_en: string; category: string;
   installation: string; power_w: number; cct_k: number; lumens: number; cri: number;
-  ip_rating: string; beam_degrees: number; image_path: string; description: string;
+  ip_rating: string; beam_degrees: number; image_path: string; gallery_images: string[]; description: string;
   stock_status: ProductStatus; visible: boolean;
 };
 export type BusinessRow = {
@@ -20,19 +21,19 @@ export type BusinessRow = {
   contact_phone: string; whatsapp_phone: string; hero_title: string; hero_description: string;
   show_prices: boolean; is_published: boolean;
 };
-export const productColumns = 'id,sku,name_ar,name_en,category,installation,power_w,cct_k,lumens,cri,ip_rating,beam_degrees,image_path,description,stock_status,visible';
+export const productColumns = 'id,sku,name_ar,name_en,category,installation,power_w,cct_k,lumens,cri,ip_rating,beam_degrees,image_path,gallery_images,description,stock_status,visible';
 export const businessColumns = 'singleton,company_name,registration_number,tax_number,contact_phone,whatsapp_phone,hero_title,hero_description,show_prices,is_published';
 
 export function fromProductRow(r: ProductRow): Product {
   return { id:r.id, sku:r.sku, name:r.name_ar, nameEn:r.name_en, category:r.category,
     installation:r.installation, watt:Number(r.power_w), cct:Number(r.cct_k),
     lumens:Number(r.lumens), cri:Number(r.cri), ip:r.ip_rating, beam:Number(r.beam_degrees),
-    image:r.image_path, description:r.description, status:r.stock_status, visible:r.visible };
+    image:r.image_path, gallery:Array.isArray(r.gallery_images)?r.gallery_images:[], description:r.description, status:r.stock_status, visible:r.visible };
 }
 export function toProductRow(p: Product): ProductRow {
   return { id:p.id, sku:p.sku, name_ar:p.name, name_en:p.nameEn, category:p.category,
     installation:p.installation, power_w:p.watt, cct_k:p.cct, lumens:p.lumens,
-    cri:p.cri, ip_rating:p.ip, beam_degrees:p.beam, image_path:p.image,
+    cri:p.cri, ip_rating:p.ip, beam_degrees:p.beam, image_path:productImages(p)[0]??'', gallery_images:productImages(p).slice(1),
     description:p.description, stock_status:p.status, visible:p.visible };
 }
 export function fromBusinessRow(r: BusinessRow): BrandSettings {
