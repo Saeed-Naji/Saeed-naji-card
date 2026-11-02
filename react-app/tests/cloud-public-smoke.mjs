@@ -29,3 +29,10 @@ const quotes = await getTable('corp_quote_requests','?select=id');
 assert.ok([401,403].includes(quotes.status) || (quotes.status===200 && Array.isArray(quotes.body) && quotes.body.length===0),
   'Public API unexpectedly exposed quote requests');
 console.log('PASS: no public quote request access.');
+
+const privacy = await getTable('corp_privacy_policy','?select=singleton,is_published,controller_name,retention_days');
+assert.equal(privacy.status,200,'Public privacy notice endpoint is not readable');
+assert.ok(Array.isArray(privacy.body),'Expected privacy policy list');
+assert.ok(privacy.body.every(p=>p.is_published===true && p.retention_days>=1),
+  'Unpublished or incomplete privacy record leaked to public user');
+console.log('PASS: unpublished privacy drafts are hidden by RLS');
