@@ -18,6 +18,7 @@ const emptyProduct = (): Product => ({
 });
 type Stage = 'checking' | 'login' | 'denied' | 'ready';
 const genericError = 'تعذرت العملية. تحقق من اتصال قاعدة البيانات وصلاحيات حسابك.';
+const quoteColumns = 'id,customer_name,customer_contact,company_name,message,items,status,created_at';
 export default function CloudAdmin() {
   const [stage,setStage] = useState<Stage>('checking');
   const [email,setEmail] = useState('');
@@ -28,6 +29,7 @@ export default function CloudAdmin() {
   const [error,setError] = useState('');
   const [products,setProducts] = useState<Product[]>([]);
   const [quotes,setQuotes] = useState<QuoteRow[]>([]);
+  const [quoteLastChecked,setQuoteLastChecked] = useState('');
   const [quoteFilter,setQuoteFilter] = useState<QuoteStatus|'all'>('all');
   const [quoteSearch,setQuoteSearch] = useState('');
   const [quoteServiceState,setQuoteServiceState] = useState<'checking'|'configured'|'offline'>('checking');
@@ -49,11 +51,12 @@ export default function CloudAdmin() {
     const [p,b,q] = await Promise.all([
       cloudClient.from('corp_products').select(productColumns).order('sku').limit(1000),
       cloudClient.from('corp_business_info').select(businessColumns).eq('singleton',true).maybeSingle(),
-      cloudClient.from('corp_quote_requests').select('id,customer_name,customer_contact,company_name,message,items,status,created_at').order('created_at',{ascending:false}).limit(100)
+      cloudClient.from('corp_quote_requests').select(quoteColumns).order('created_at',{ascending:false}).limit(100)
     ]);
     if (p.error || b.error || q.error) { setStage('denied'); setError(genericError); return; }
     setProducts(((p.data ?? []) as ProductRow[]).map(fromProductRow));
     setQuotes((q.data ?? []) as QuoteRow[]);
+    setQuoteLastChecked(new Date().toLocaleTimeString('ar-SA'));
     setSettings(b.data ? fromBusinessRow(b.data as BusinessRow) : defaultSettings);
     setPublished(Boolean(b.data?.is_published));
     setStage('ready');
@@ -63,7 +66,7 @@ export default function CloudAdmin() {
     void checkIdentity().catch(()=>{if(active){setStage('login');setError(genericError);}});
     const {data:{subscription}}=cloudClient?.auth.onAuthStateChange((event)=>{
       if (!active) return;
-      if (event === 'SIGNED_OUT') {setProducts([]);setQuotes([]);setDraft(null);setStage('login');}
+      if (event === 'SIGNED_OUT') {setProducts([]);setQuotes([]);setQuoteLastChecked('');setDraft(null);setStage('login');}
       // Token refresh and membership checks are enforced by RLS on every query.
     }) ?? {data:{subscription:{unsubscribe(){}}}};
     return ()=>{active=false;subscription.unsubscribe();};
@@ -81,6 +84,30 @@ export default function CloudAdmin() {
     return ()=>{active=false;};
   },[]);
 
+  async function refreshQuotes() {
+    if (!cloudClient || stage!=='ready') return;
+    const {data,error:refreshError} = await cloudClient.from('corp_quote_requests')
+      .select(quoteColumns).order('created_at',{ascending:false}).limit(100);
+    if (refreshError) {setError('تعذّر تحديث قائمة الطلبات. حاول مجددًا.');return;}
+    setQuotes((data ?? []) as QuoteRow[]);
+    setQuoteLastChecked(new Date().toLocaleTimeString('ar-SA'));
+  }
+  useEffect(()=>{
+    if(stage!=='ready'||!cloudClient)return;
+    let active=true;
+    const interval=window.setInterval(()=>{
+      if(document.visibilityState!=='visible')return;
+      void cloudClient!.from('corp_quote_requests')
+        .select(quoteColumns).order('created_at',{ascending:false}).limit(100)
+        .then(({data,error})=>{
+          if(!active||error)return;
+          setQuotes((data ?? []) as QuoteRow[]);
+          setQuoteLastChecked(new Date().toLocaleTimeString('ar-SA'));
+        });
+    },60_000);
+    return()=>{active=false;window.clearInterval(interval);};
+  },[stage]);
+  
   async function signIn(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!cloudClient || busy) return;
@@ -94,7 +121,7 @@ export default function CloudAdmin() {
   }
   async function signOut() {
     await cloudClient?.auth.signOut();
-    setProducts([]);setQuotes([]);setDraft(null);setStage('login');setError('');
+    setProducts([]);setQuotes([]);setQuoteLastChecked('');setDraft(null);setStage('login');setError('');
   }
   async function saveProduct() {
     if (!cloudClient || !draft || busy || uploading) return;
@@ -152,6 +179,7 @@ export default function CloudAdmin() {
     } finally {setUploading(false);}
   }
   const displayedQuotes = filterQuotes(quotes,quoteFilter,quoteSearch);
+  const newQuoteCount = quotes.filter(q=>q.status==='new').length;
   const update = <K extends keyof Product>(key:K,value:Product[K]) => setDraft(p=>p?{...p,[key]:value}:p);
   const settingsUpdate = <K extends keyof BrandSettings>(key:K,value:BrandSettings[K]) => setSettings(p=>({...p,[key]:value}));
   return <main className="cloud-admin" dir="rtl" lang="ar">
@@ -186,8 +214,9 @@ export default function CloudAdmin() {
       {products.length===0&&<p>لا توجد منتجات في القاعدة الجديدة. لا تُنقل منتجات المشروع القديم تلقائيًا.</p>}</div></div>
       <section className="cloud-panel cloud-quotes-panel">
         <div className="cloud-section-head"><h2>طلبات عروض الأسعار <small>({quotes.length} من أحدث 100 طلب)</small></h2>
+          <div className="cloud-quote-live" aria-live="polite"><strong>الجديدة: {newQuoteCount}</strong><span>{quoteLastChecked?'آخر تحديث: '+quoteLastChecked:'جارٍ التحقق…'} · تحديث تلقائي كل دقيقة أثناء فتح الصفحة</span></div>
           <div className="cloud-quote-actions">
-            <button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void reload()}>تحديث الطلبات</button>
+            <button type="button" className="cloud-btn cloud-muted" disabled={busy} onClick={()=>void refreshQuotes()}>تحديث الطلبات</button>
             <button type="button" className="cloud-btn" disabled={busy||!displayedQuotes.length}
               onClick={()=>{
                 if(!confirm('سيُنزل ملف Excel يحتوي على بيانات تواصل العملاء. احتفظ به في مكان آمن ولا تشاركه دون إذن. متابعة؟'))return;
