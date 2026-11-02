@@ -44,6 +44,31 @@ jobs:
           VITE_CORP_SUPABASE_URL: ${{ vars.CORP_SUPABASE_URL || 'https://afrvoshsiqartsketiuv.supabase.co' }}
           VITE_CORP_SUPABASE_PUBLISHABLE_KEY: ${{ vars.CORP_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_0fyTTziF-9PaGtp--sxn1w_qQtJe93i' }}
         run: node tests/cloud-quote-intake-smoke.mjs
+      - name: Include user-supplied reference backgrounds (optional)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, BadZipFile
+          package=Path('reference-backgrounds.zip')
+          target=Path('react-app/public/images')
+          allowed={'hero.jpg','about.jpg','pr-tower.jpg','pr-resort.jpg','pr-factory.jpg','pr-hotel.jpg'}
+          if not package.is_file():
+              print('Reference image bundle not uploaded; using existing safe fallback images.')
+          else:
+              target.mkdir(parents=True,exist_ok=True)
+              with ZipFile(package) as archive:
+                  for name in sorted(allowed):
+                      path='react-app/public/images/'+name
+                      try: info=archive.getinfo(path)
+                      except KeyError: raise SystemExit('Required reference asset missing: '+name)
+                      if info.file_size <= 0 or info.file_size > 5_000_000:
+                          raise SystemExit('Invalid reference image size: '+name)
+                      data=archive.read(info)
+                      if not data.startswith(b'\\xff\\xd8\\xff'):
+                          raise SystemExit('Invalid JPEG content: '+name)
+                      (target/name).write_bytes(data)
+                      print('Included original reference photo:', name, len(data))
+          PY
       - name: Build React
         working-directory: react-app
         env:
