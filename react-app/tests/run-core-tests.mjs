@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const out=join(root,'tests','.compiled');
 rmSync(out,{recursive:true,force:true});mkdirSync(out,{recursive:true});
-const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts','src/quote-admin.ts'],{cwd:root,encoding:'utf8'});
+const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts','src/quote-admin.ts','src/reference-features.ts'],{cwd:root,encoding:'utf8'});
 if(compiled.status!==0){console.error(compiled.stdout,compiled.stderr);process.exit(1);}
 writeFileSync(join(out,'package.json'),'{'+'"type":"commonjs"}');
 const require=createRequire(import.meta.url);
@@ -16,6 +16,8 @@ const portable=require(join(out,'portable.js'));
 const gallery=require(join(out,'gallery.js'));
 const quoteRequest=require(join(out,'quote-request.js'));
 const quoteAdmin=require(join(out,'quote-admin.js'));
+const refFeatures=require(join(out,'reference-features.js'));
+
 
 
 const all=logic.demoProducts;
@@ -108,3 +110,13 @@ const quotesXlsx=quoteAdmin.exportAdminQuotes([demoQuote]);
 assert.deepEqual(Array.from(quotesXlsx.slice(0,2)),[80,75]);
 assert.ok(quotesXlsx.length>1000);
 console.log('PASS: private quote product details, status filter, search and native XLSX export');
+
+assert.equal(refFeatures.CATALOG_PAGE_SIZE,12);
+assert.equal(refFeatures.catalogPath(),'./?catalog=1');
+assert.equal(refFeatures.catalogPath('داون لايت'),'./?catalog=1&category='+encodeURIComponent('داون لايت'));
+const refProducts=[{...all[0],watt:20,name:'زي'},{...all[1],watt:10,name:'ألف'}];
+assert.equal(refFeatures.sortCatalogProducts(refProducts,'power_asc')[0].watt,10);
+assert.equal(refFeatures.sortCatalogProducts(refProducts,'power_desc')[0].watt,20);
+assert.equal(refFeatures.sortCatalogProducts(refProducts,'name')[0].name,'ألف');
+assert.equal(refProducts[0].watt,20,'Sorting must not mutate input');
+console.log('PASS: reference catalog sorting, pagination limit and encoded deep links');

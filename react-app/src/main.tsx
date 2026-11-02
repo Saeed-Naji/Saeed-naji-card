@@ -10,6 +10,9 @@ import CloudAdmin from './cloud-admin';
 import { productImages } from './gallery';
 import { QuoteRequestDialog } from './quote-form';
 import PrivacyPage from './privacy-page';
+import ReferenceProductDetails from './reference-details';
+import { catalogPath, CATALOG_PAGE_SIZE, sortCatalogProducts } from './reference-features';
+import type { CatalogSort } from './reference-features';
 import { cloudEnabled, readPublicCatalog } from './cloud';
 
 const statusLabels: Record<Product['status'],string> = {available:'متوفر',soon:'قريبًا',unavailable:'غير متوفر'};
@@ -17,6 +20,8 @@ const statusClass: Record<Product['status'],string> = {available:'available',soo
 const adminMode = !cloudEnabled && import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
 const cloudAdminRequested = new URLSearchParams(location.search).get('admin') === '1';
 const catalogPageRequested = new URLSearchParams(location.search).get('catalog') === '1';
+const requestedProductId = new URLSearchParams(location.search).get('product');
+const requestedCategory = new URLSearchParams(location.search).get('category') ?? '';
 const privacyRequested = new URLSearchParams(location.search).get('privacy') === '1';
 
 function readProducts(): Product[] {
@@ -75,10 +80,10 @@ function ProductCard({product, quantity, onCart, onDatasheet}:{product:Product;q
   return <article className="product-card"><div className="product-media">
     <ProductPhoto product={product}/>
     <span className={`status-tag ${statusClass[product.status]}`}>{statusLabels[product.status]}</span>
-    </div><div className="product-body"><div className="product-title"><div><h3>{product.name}</h3><span>{product.nameEn}</span></div><span className="product-code" dir="ltr">{product.sku}</span></div>
+    </div><div className="product-body"><div className="product-title"><div><h3><a className="rc-product-link" href={"./?product="+encodeURIComponent(product.id)}>{product.name}</a></h3><span>{product.nameEn}</span></div><span className="product-code" dir="ltr">{product.sku}</span></div>
     <p className="product-description">{product.description}</p>
     <div className="specs"><span><b>{product.watt}W</b> القدرة</span><span><b>{product.cct}K</b> اللون</span><span><b>{product.lumens}</b> لومن</span></div>
-    <div className="product-actions"><button type="button" className="button outline" onClick={()=>onDatasheet(product)}>الداتا شيت <span aria-hidden="true">↗</span></button>
+    <div className="product-actions"><a className="button outline rc-detail-link" href={"./?product="+encodeURIComponent(product.id)}>التفاصيل <span aria-hidden="true">↗</span></a><button type="button" className="button outline" onClick={()=>onDatasheet(product)}>الداتا شيت</button>
     {quantity>0?<QuantityControl product={product} quantity={quantity} onCart={onCart}/>:<button type="button" className="button primary" onClick={()=>onCart(product,1)}>أضف للطلب <span aria-hidden="true">+</span></button>}
     </div></div></article>;
 }
@@ -132,15 +137,21 @@ function Admin({products,settings,onSaveProduct,onDeleteProduct,onSettings,onImp
 function App(){
   const [products,setProducts]=useState<Product[]>(()=>cloudEnabled?[]:readProducts());
   const [settings,setSettings]=useState<BrandSettings>(()=>cloudEnabled?defaultSettings:readSettings());
-  const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS});
+  const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS,category:requestedCategory});
   const [cart,setCart]=useState<CartItem[]>(()=>cloudEnabled?[]:readCart(readProducts()));
   const [cartOpen,setCartOpen]=useState(false);
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
+  const [sort,setSort]=useState<CatalogSort>('newest');
+  const [catalogLimit,setCatalogLimit]=useState(CATALOG_PAGE_SIZE);
+  const [mobileFiltersOpen,setMobileFiltersOpen]=useState(false);
+  const [dark,setDark]=useState(()=>{try{return localStorage.getItem('saeed-corporate-theme')==='dark';}catch{return false;}});
   const [quoteOpen,setQuoteOpen]=useState(false);
   const [catalogReady,setCatalogReady]=useState(!cloudEnabled);
   const [admin,setAdmin]=useState(adminMode);
   const [printProduct,setPrintProduct]=useState<Product|null>(null);
   const [notice,setNotice]=useState('');
+  useEffect(()=>{try{localStorage.setItem('saeed-corporate-theme',dark?'dark':'light');}catch{/* private browsing */}},[dark]);
+  useEffect(()=>setCatalogLimit(CATALOG_PAGE_SIZE),[filters,sort]);
   useEffect(()=>{if(!cloudEnabled && !saveState(PRODUCTS_KEY,products))setNotice('تعذر الحفظ على هذا المتصفح')},[products]);
   useEffect(()=>{if(!cloudEnabled && !saveState(SETTINGS_KEY,settings))setNotice('تعذر حفظ إعدادات الشركة')},[settings]);
   useEffect(()=>{if(catalogReady && !saveState(CART_KEY,cart))setNotice('تعذر حفظ قائمة الطلب')},[cart,catalogReady]);
@@ -148,7 +159,9 @@ function App(){
     readPublicCatalog().then(data=>{if(active){setProducts(data.products);setSettings(data.settings);setCart(readCart(data.products));setCatalogReady(true);}})
       .catch(()=>{if(active){setProducts([]);setCart([]);setCatalogReady(false);setNotice('تعذر تحميل بيانات الكتالوج من القاعدة الجديدة. لم يتم عرض بيانات محلية بديلة.');}});
     return ()=>{active=false;};},[]);
-  const filtered=useMemo(()=>filterProducts(products,filters),[products,filters]);
+  const filtered=useMemo(()=>sortCatalogProducts(filterProducts(products,filters),sort),[products,filters,sort]);
+  const visiblePage=useMemo(()=>filtered.slice(0,catalogLimit),[filtered,catalogLimit]);
+  const selectedProduct=useMemo(()=>products.find(p=>p.id===requestedProductId&&p.visible),[products]);
   const available=useMemo(()=>visibleProducts(products),[products]);
   const categories=useMemo(()=>Array.from(new Set(available.map(p=>p.category).filter(Boolean))).slice(0,6),[available]);
   const featured=useMemo(()=>available.slice(0,4),[available]);
@@ -168,7 +181,7 @@ function App(){
   const filterSelect=(key:'category'|'installation'|'cct'|'status',label:string)=>{const options=filterOptions(products,filters,key);return <label className="filter-label">{label}<select aria-label={label} value={filters[key]} onChange={e=>setFilters(p=>({...p,[key]:e.target.value}))}><option value="">الكل</option>{options.map(v=><option key={v} value={v}>{key==='status'?statusLabels[v as Product['status']]:key==='cct'?`${v}K`:v}</option>)}</select></label>};
   const checkout=()=>{if(!cartItems.length)return;const digits=settings.whatsapp.replace(/\D/g,'');if(!/^\d{9,15}$/.test(digits)){setNotice('رقم واتساب غير صالح في إعدادات الشركة');return;}const message=makeWhatsAppMessage(cart,products,settings);window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer')};
   if(admin) return <><Admin products={products} settings={settings} onSaveProduct={onSaveProduct} onDeleteProduct={onDeleteProduct} onSettings={next=>{setSettings(next);setNotice('تم حفظ إعدادات الشركة محليًا')}} onImport={importLocal} onExport={()=>downloadSnapshot(makeSnapshot(products,settings))} onClose={()=>{setAdmin(false);history.replaceState({},'',location.pathname)}}/>{notice&&<div role="status" className="toast" onClick={()=>setNotice('')}>{notice}</div>}</>;
-  return <div className="rc-app">
+  return <div className={"rc-app"+(dark?" rc-dark":"")}>
   <header className="rc-header">
     <div className="container rc-nav">
       <a className="rc-logo" href="./" aria-label="الصفحة الرئيسية">
@@ -188,6 +201,7 @@ function App(){
           <span aria-hidden="true">▤</span> <span className="rc-quote-text">طلب عرض سعر</span>
           {cartItems.length>0&&<span className="rc-cart-count">{cartItems.length}</span>}
         </button>
+        <button type="button" className="rc-mode-toggle" aria-label={dark?'تفعيل الوضع الفاتح':'تفعيل الوضع الداكن'} title={dark?'الوضع الفاتح':'الوضع الداكن'} onClick={()=>setDark(v=>!v)}>{dark?'☀':'☾'}</button>
         <button type="button" className="rc-menu-toggle" aria-label={mobileNavOpen?'إغلاق القائمة':'فتح القائمة'} aria-expanded={mobileNavOpen}
           aria-controls="rc-mobile-nav" onClick={()=>setMobileNavOpen(v=>!v)}><span aria-hidden="true">{mobileNavOpen?'×':'☰'}</span></button>
       </div>
@@ -198,6 +212,10 @@ function App(){
     </nav>}
   </header>
   <main id="top">
+  {requestedProductId ? (selectedProduct ? <ReferenceProductDetails product={selectedProduct} settings={settings}
+    related={available.filter(p=>p.id!==selectedProduct.id&&p.category===selectedProduct.category)}
+    quantity={cart.find(c=>c.productId===selectedProduct.id)?.quantity??0}
+    onCart={onCart} onDatasheet={setPrintProduct}/> : <div className="container rc-detail-empty" role="status"><h1>{catalogReady?'المنتج غير موجود':'جارٍ تحميل المنتج…'}</h1><a className="rc-btn rc-btn-primary" href="./?catalog=1">العودة للمنتجات</a></div>) : <>
   {!catalogPageRequested&&<>
     <section className="rc-hero" aria-label="حلول الإنارة المؤسسية">
       <div className="rc-hero-picture" role="img" aria-label="مشروع إنارة معمارية توضيحي"></div>
@@ -246,11 +264,11 @@ function App(){
 
     <section className="rc-section rc-categories">
       <div className="container">
-        <div className="rc-title-row"><div><span className="rc-kicker">PRODUCT CATEGORIES</span><h2>فئات المنتجات</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="#catalog">كل المنتجات</a></div>
+        <div className="rc-title-row"><div><span className="rc-kicker">PRODUCT CATEGORIES</span><h2>فئات المنتجات</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="./?catalog=1">كل المنتجات</a></div>
         {categories.length ? <div className="rc-tile-grid rc-three-col">{categories.map(category=>{
           const sample=available.find(p=>p.category===category);
           const total=available.filter(p=>p.category===category).length;
-          return <a key={category} href="#catalog" className="rc-category-card" onClick={()=>setFilters({...EMPTY_FILTERS,category})}>
+          return <a key={category} href={catalogPath(category)} className="rc-category-card">
             <div className="rc-category-image">{sample?.image?<img src={sample.image} alt={category} loading="lazy"/>:<span className="rc-product-placeholder" aria-hidden="true">✦</span>}</div>
             <div className="rc-category-caption"><span><strong>{category}</strong><small>{total} منتج</small></span><b aria-hidden="true">←</b></div>
           </a>;
@@ -259,15 +277,35 @@ function App(){
     </section>
 
     {featured.length>0&&<section className="rc-section rc-section-soft rc-featured">
-      <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">FEATURED COLLECTION</span><h2>منتجات مميزة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="#catalog">تصفح الكتالوج</a></div>
+      <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">FEATURED COLLECTION</span><h2>منتجات مميزة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="./?catalog=1">تصفح الكتالوج</a></div>
       <div className="product-grid rc-featured-grid">{featured.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div></div>
     </section>}
 
   </>}
   <section id="catalog" className="catalog-section"><div className="container">{catalogPageRequested&&<div className="rc-page-intro"><span className="rc-kicker">COMPLETE PRODUCT CATALOG</span><h1>كتالوج المنتجات</h1><p>تصفح الأصناف وابحث في المواصفات الفنية، وأضف ما تحتاجه إلى قائمة طلب السعر.</p></div>}<div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
-  <div className="filters"><label className="search-label">بحث في المنتجات<input placeholder="اسم المنتج أو الكود..." value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))}/></label>{filterSelect('category','القسم')}{filterSelect('cct','لون الإضاءة')}{filterSelect('installation','التركيب')}{filterSelect('status','التوفر')}<button type="button" className="clear-filters" onClick={()=>setFilters({...EMPTY_FILTERS})}>مسح الفلاتر</button></div>
-  {!catalogReady && cloudEnabled ? <div className="empty-state" role="status"><h3>جاري تحميل الكتالوج</h3><p>تُجلب المنتجات من قاعدة Saeed المؤسسية.</p></div> : filtered.length?<div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
-  <div className="catalog-bottom"><button type="button" className="button outline" onClick={()=>saveExcel(exportProductsExcel(available),'flower-light-products.xlsx')}>تصدير قائمة المنتجات Excel ↓</button><p>المنتجات المعروضة بيانات تجريبية لتطوير المشروع وليست كتالوجًا نهائيًا.</p></div></div></section>
+  <div className="rc-catalog-shell">
+    {catalogPageRequested&&<aside className={"rc-filter-side"+(mobileFiltersOpen?" open":"")}>
+      <h3>فئات المنتجات</h3>
+      <a href="./?catalog=1" className={!filters.category?'active':''}>جميع الفئات ({available.length})</a>
+      {categories.map(category=><a key={category} className={filters.category===category?'active':''}
+        href={catalogPath(category)}>{category} <span>{available.filter(p=>p.category===category).length}</span></a>)}
+      <div className="rc-side-note">يمكنك تحديد نوع التركيب ودرجة اللون والحالة من عوامل التصفية.</div>
+    </aside>}
+    <div className="rc-catalog-main">
+    {catalogPageRequested&&<div className="rc-catalog-toolbar">
+      <span>{filtered.length} منتج</span>
+      <button type="button" className="rc-mobile-filter-button" onClick={()=>setMobileFiltersOpen(v=>!v)}
+        aria-expanded={mobileFiltersOpen}>{mobileFiltersOpen?'إخفاء الفئات':'الفئات والفلاتر ☷'}</button>
+      <label>ترتيب حسب <select value={sort} onChange={e=>setSort(e.target.value as CatalogSort)}>
+        <option value="newest">الترتيب الافتراضي</option><option value="name">الاسم</option>
+        <option value="power_asc">القدرة: الأقل أولًا</option><option value="power_desc">القدرة: الأعلى أولًا</option>
+      </select></label>
+    </div>}
+    <div className="filters"><label className="search-label">بحث في المنتجات<input placeholder="اسم المنتج أو الكود..." value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))}/></label>{filterSelect('category','القسم')}{filterSelect('cct','لون الإضاءة')}{filterSelect('installation','التركيب')}{filterSelect('status','التوفر')}<button type="button" className="clear-filters" onClick={()=>setFilters({...EMPTY_FILTERS})}>مسح الفلاتر</button></div>
+  {!catalogReady && cloudEnabled ? <div className="empty-state" role="status"><h3>جاري تحميل الكتالوج</h3><p>تُجلب المنتجات من قاعدة Saeed المؤسسية.</p></div> : filtered.length?<div className="product-grid">{visiblePage.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
+  {filtered.length>catalogLimit&&<div className="rc-load-more"><button type="button" className="rc-btn rc-btn-outline" onClick={()=>setCatalogLimit(v=>v+CATALOG_PAGE_SIZE)}>عرض المزيد ({Math.min(catalogLimit,filtered.length)} من {filtered.length})</button></div>}
+  <div className="catalog-bottom"><button type="button" className="button outline" onClick={()=>saveExcel(exportProductsExcel(available),'saeed-catalog-products.xlsx')}>تصدير قائمة المنتجات Excel ↓</button><p>المنتجات المعروضة بيانات تجريبية لتطوير المشروع وليست كتالوجًا نهائيًا.</p></div>
+  </div></div></div></section>
   {!catalogPageRequested&&<>
   <section className="rc-section rc-services" id="services">
     <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">OUR SERVICES</span><h2>خدمات وحلول متكاملة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="services.html">جميع الخدمات</a></div>
@@ -318,6 +356,7 @@ function App(){
       </div>
     </div>
   </section>
+  </>}
   </>}
   </main>
   <footer className="rc-footer">
