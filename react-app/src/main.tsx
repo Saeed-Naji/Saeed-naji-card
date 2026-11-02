@@ -5,6 +5,7 @@ import { CART_KEY, demoProducts, defaultSettings, EMPTY_FILTERS, filterOptions, 
 import { exportProductsExcel, exportQuoteExcel, saveExcel } from './export';
 import { downloadSnapshot, makeSnapshot, parseSnapshot } from './portable';
 import './styles.css';
+import './reference-corporate.css';
 import CloudAdmin from './cloud-admin';
 import { productImages } from './gallery';
 import { QuoteRequestDialog } from './quote-form';
@@ -15,6 +16,7 @@ const statusLabels: Record<Product['status'],string> = {available:'متوفر',s
 const statusClass: Record<Product['status'],string> = {available:'available',soon:'soon',unavailable:'unavailable'};
 const adminMode = !cloudEnabled && import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
 const cloudAdminRequested = new URLSearchParams(location.search).get('admin') === '1';
+const catalogPageRequested = new URLSearchParams(location.search).get('catalog') === '1';
 const privacyRequested = new URLSearchParams(location.search).get('privacy') === '1';
 
 function readProducts(): Product[] {
@@ -133,6 +135,7 @@ function App(){
   const [filters,setFilters]=useState<Filters>({...EMPTY_FILTERS});
   const [cart,setCart]=useState<CartItem[]>(()=>cloudEnabled?[]:readCart(readProducts()));
   const [cartOpen,setCartOpen]=useState(false);
+  const [mobileNavOpen,setMobileNavOpen]=useState(false);
   const [quoteOpen,setQuoteOpen]=useState(false);
   const [catalogReady,setCatalogReady]=useState(!cloudEnabled);
   const [admin,setAdmin]=useState(adminMode);
@@ -147,6 +150,8 @@ function App(){
     return ()=>{active=false;};},[]);
   const filtered=useMemo(()=>filterProducts(products,filters),[products,filters]);
   const available=useMemo(()=>visibleProducts(products),[products]);
+  const categories=useMemo(()=>Array.from(new Set(available.map(p=>p.category).filter(Boolean))).slice(0,6),[available]);
+  const featured=useMemo(()=>available.slice(0,4),[available]);
   const cartItems=useMemo(()=>cart.map(c=>({p:products.find(p=>p.id===c.productId && p.visible),quantity:c.quantity})).filter((i):i is {p:Product;quantity:number}=>!!i.p),[cart,products]);
   const onCart=(p:Product,quantity:number)=>{
     if(quantity>0 && !cart.some(c=>c.productId===p.id) && cart.length>=30){setNotice('الحد الأقصى لقائمة الطلب هو 30 صنفًا. احذف صنفًا أولًا.');return;}
@@ -163,17 +168,168 @@ function App(){
   const filterSelect=(key:'category'|'installation'|'cct'|'status',label:string)=>{const options=filterOptions(products,filters,key);return <label className="filter-label">{label}<select aria-label={label} value={filters[key]} onChange={e=>setFilters(p=>({...p,[key]:e.target.value}))}><option value="">الكل</option>{options.map(v=><option key={v} value={v}>{key==='status'?statusLabels[v as Product['status']]:key==='cct'?`${v}K`:v}</option>)}</select></label>};
   const checkout=()=>{if(!cartItems.length)return;const digits=settings.whatsapp.replace(/\D/g,'');if(!/^\d{9,15}$/.test(digits)){setNotice('رقم واتساب غير صالح في إعدادات الشركة');return;}const message=makeWhatsAppMessage(cart,products,settings);window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer')};
   if(admin) return <><Admin products={products} settings={settings} onSaveProduct={onSaveProduct} onDeleteProduct={onDeleteProduct} onSettings={next=>{setSettings(next);setNotice('تم حفظ إعدادات الشركة محليًا')}} onImport={importLocal} onExport={()=>downloadSnapshot(makeSnapshot(products,settings))} onClose={()=>{setAdmin(false);history.replaceState({},'',location.pathname)}}/>{notice&&<div role="status" className="toast" onClick={()=>setNotice('')}>{notice}</div>}</>;
-  return <><header className="navbar"><div className="container nav-inner"><a href="#top" aria-label="الصفحة الرئيسية"><Logo/></a><nav className="nav-links" aria-label="التنقل الرئيسي"><a href="./">الرئيسية</a><a href="about.html">من نحن</a><a href="services.html">الخدمات</a><a href="projects.html">المشاريع</a><a href="#catalog">المنتجات</a><a href="contact.html">تواصل معنا</a></nav><button type="button" className="nav-quote" onClick={()=>setCartOpen(true)}>قائمة الطلب <span>{cartItems.length}</span></button></div></header>
-  <main id="top"><section className="hero"><div className="hero-image"/><div className="hero-shade"/><div className="container hero-content"><div className="eyebrow"><span className="eyebrow-line"/> ARCHITECTURAL LIGHTING SOLUTIONS</div><h1>{settings.heroTitle.split(' ').slice(0,3).join(' ')}<br/><em>{settings.heroTitle.split(' ').slice(3).join(' ')}</em></h1><p>{settings.heroDescription}</p><div className="hero-buttons"><a href="#catalog" className="button gold">اكتشف منتجاتنا <span>←</span></a><a href="#about" className="button ghost">اكتشف FLOWER LIGHT</a></div></div><div className="hero-bottom"><span>01 / 03</span><span>Designed for what matters.</span></div></section>
-  <section className="values-strip"><div className="container strip-grid"><div><strong>تصاميم متقنة</strong><span>جودة تجتمع مع البساطة</span></div><div><strong>أداء ضوئي عالٍ</strong><span>حلول لكل مساحة</span></div><div><strong>خيارات متنوعة</strong><span>لمشاريعك المختلفة</span></div><div><strong>دعم متخصص</strong><span>من الفكرة إلى التنفيذ</span></div></div></section>
-  <section id="about" className="container about-section"><div><span className="section-kicker">ABOUT FLOWER LIGHT</span><h2>نضيء التفاصيل،<br/><em>ونصنع الفرق.</em></h2></div><div><p>في فلاور لايت نؤمن بأن الإنارة عنصر معماري أساسي يمنح المكان شخصيته. نقدم حلولًا مدروسة تلائم المشاريع السكنية والتجارية، مع اهتمام بأداء المنتج وتفاصيله الفنية.</p><a className="underlined-link" href="#contact">تعرف على شركتنا <span>↗</span></a></div></section>
-  <section id="catalog" className="catalog-section"><div className="container"><div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
+  return <div className="rc-app">
+  <header className="rc-header">
+    <div className="container rc-nav">
+      <a className="rc-logo" href="./" aria-label="الصفحة الرئيسية">
+        <span className="rc-logo-icon" aria-hidden="true">✦</span>
+        <span className="rc-logo-caption"><b>{settings.name || 'FLOWER LIGHT'}</b><small>LIGHTING & ELECTRICAL SOLUTIONS</small></span>
+      </a>
+      <nav className="rc-desktop-nav" aria-label="القائمة الرئيسية">
+        <a href="./" aria-current="page">الرئيسية</a>
+        <a href="about.html">من نحن</a>
+        <a href="./?catalog=1">المنتجات</a>
+        <a href="services.html">الخدمات</a>
+        <a href="projects.html">المشاريع</a>
+        <a href="contact.html">التواصل</a>
+      </nav>
+      <div className="rc-nav-actions">
+        <button type="button" className="rc-cta rc-quote-action" onClick={()=>setCartOpen(true)}>
+          <span aria-hidden="true">▤</span> <span className="rc-quote-text">طلب عرض سعر</span>
+          {cartItems.length>0&&<span className="rc-cart-count">{cartItems.length}</span>}
+        </button>
+        <button type="button" className="rc-menu-toggle" aria-label={mobileNavOpen?'إغلاق القائمة':'فتح القائمة'} aria-expanded={mobileNavOpen}
+          aria-controls="rc-mobile-nav" onClick={()=>setMobileNavOpen(v=>!v)}><span aria-hidden="true">{mobileNavOpen?'×':'☰'}</span></button>
+      </div>
+    </div>
+    {mobileNavOpen&&<nav id="rc-mobile-nav" className="rc-mobile-nav" aria-label="القائمة على الجوال">
+      {[['./','الرئيسية'],['about.html','من نحن'],['./?catalog=1','المنتجات'],['services.html','الخدمات'],['projects.html','المشاريع'],['contact.html','التواصل']] .map(([href,label])=>
+        <a href={href} key={href} onClick={()=>setMobileNavOpen(false)}>{label}</a>)}
+    </nav>}
+  </header>
+  <main id="top">
+  {!catalogPageRequested&&<>
+    <section className="rc-hero" aria-label="حلول الإنارة المؤسسية">
+      <div className="rc-hero-picture" role="img" aria-label="مشروع إنارة معمارية توضيحي"></div>
+      <div className="rc-hero-overlay"></div>
+      <div className="container rc-hero-content">
+        <span className="rc-eyebrow">CORPORATE LIGHTING SOLUTIONS</span>
+        <h1>{settings.heroTitle}</h1>
+        <p>{settings.heroDescription}</p>
+        <div className="rc-hero-buttons">
+          <a className="rc-btn rc-btn-primary" href="./?catalog=1">استعرض المنتجات <span aria-hidden="true">←</span></a>
+          <a className="rc-btn rc-btn-hero-outline" href="about.html">تعرف على الشركة</a>
+        </div>
+      </div>
+      <div className="rc-hero-indicator"><span></span><b></b><b></b></div>
+    </section>
+
+    <section className="rc-section rc-about" id="about">
+      <div className="container rc-about-grid">
+        <div className="rc-about-visual" role="img" aria-label="مثال توضيحي لمشروع إنارة داخلية"></div>
+        <div className="rc-about-copy">
+          <span className="rc-kicker">ABOUT OUR COMPANY</span>
+          <h2>حلول عملية للإنارة،<br/>مناسبة لاحتياجات المشاريع</h2>
+          <span className="rc-accent-line" aria-hidden="true"></span>
+          <p>يقدم هذا الموقع نموذجًا مؤسسيًا لعرض حلول الإنارة والمنتجات الفنية، ومساعدة العميل على المقارنة واختيار الأصناف المناسبة وإعداد طلب عرض سعر منظم.</p>
+          <p className="rc-muted">المحتوى والصور المعروضة للتوضيح إلى حين اعتماد المعلومات الرسمية للشركة.</p>
+          <a className="rc-btn rc-btn-outline" href="about.html">المزيد عن الشركة <span aria-hidden="true">←</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section className="rc-section rc-section-soft rc-sectors">
+      <div className="container">
+        <div className="rc-title-row"><div><span className="rc-kicker">BUSINESS SECTORS</span><h2>القطاعات التي نخدمها</h2><span className="rc-accent-line" aria-hidden="true"></span></div></div>
+        <div className="rc-tile-grid rc-four-col">
+          {[
+            ['⌂','المشاريع السكنية','إضاءة عامة وديكورية للمساحات الداخلية والخارجية.'],
+            ['▤','المشاريع التجارية','حلول عرض وإنارة لواجهات ومتاجر ومساحات عمل.'],
+            ['⚙','المرافق الصناعية','خيارات إنارة تقنية للمستودعات والمرافق.'],
+            ['◇','الضيافة والمشاريع','خيارات تناسب مشاريع الفنادق والمرافق العامة.']
+          ].map(([icon,title,description])=><a href="services.html" className="rc-icon-card" key={title}>
+            <span className="rc-sector-icon" aria-hidden="true">{icon}</span><h3>{title}</h3><p>{description}</p>
+          </a>)}
+        </div>
+      </div>
+    </section>
+
+    <section className="rc-section rc-categories">
+      <div className="container">
+        <div className="rc-title-row"><div><span className="rc-kicker">PRODUCT CATEGORIES</span><h2>فئات المنتجات</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="#catalog">كل المنتجات</a></div>
+        {categories.length ? <div className="rc-tile-grid rc-three-col">{categories.map(category=>{
+          const sample=available.find(p=>p.category===category);
+          const total=available.filter(p=>p.category===category).length;
+          return <a key={category} href="#catalog" className="rc-category-card" onClick={()=>setFilters({...EMPTY_FILTERS,category})}>
+            <div className="rc-category-image">{sample?.image?<img src={sample.image} alt={category} loading="lazy"/>:<span className="rc-product-placeholder" aria-hidden="true">✦</span>}</div>
+            <div className="rc-category-caption"><span><strong>{category}</strong><small>{total} منتج</small></span><b aria-hidden="true">←</b></div>
+          </a>;
+        })}</div> : <p className="rc-muted">ستظهر فئات الكتالوج بعد نشر المنتجات من لوحة المدير.</p>}
+      </div>
+    </section>
+
+    {featured.length>0&&<section className="rc-section rc-section-soft rc-featured">
+      <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">FEATURED COLLECTION</span><h2>منتجات مميزة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="#catalog">تصفح الكتالوج</a></div>
+      <div className="product-grid rc-featured-grid">{featured.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div></div>
+    </section>}
+
+  </>}
+  <section id="catalog" className="catalog-section"><div className="container">{catalogPageRequested&&<div className="rc-page-intro"><span className="rc-kicker">COMPLETE PRODUCT CATALOG</span><h1>كتالوج المنتجات</h1><p>تصفح الأصناف وابحث في المواصفات الفنية، وأضف ما تحتاجه إلى قائمة طلب السعر.</p></div>}<div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
   <div className="filters"><label className="search-label">بحث في المنتجات<input placeholder="اسم المنتج أو الكود..." value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))}/></label>{filterSelect('category','القسم')}{filterSelect('cct','لون الإضاءة')}{filterSelect('installation','التركيب')}{filterSelect('status','التوفر')}<button type="button" className="clear-filters" onClick={()=>setFilters({...EMPTY_FILTERS})}>مسح الفلاتر</button></div>
   {!catalogReady && cloudEnabled ? <div className="empty-state" role="status"><h3>جاري تحميل الكتالوج</h3><p>تُجلب المنتجات من قاعدة Saeed المؤسسية.</p></div> : filtered.length?<div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
   <div className="catalog-bottom"><button type="button" className="button outline" onClick={()=>saveExcel(exportProductsExcel(available),'flower-light-products.xlsx')}>تصدير قائمة المنتجات Excel ↓</button><p>المنتجات المعروضة بيانات تجريبية لتطوير المشروع وليست كتالوجًا نهائيًا.</p></div></div></section>
-  <section className="banner-section"><div className="container banner-inner"><span className="section-kicker">YOUR LIGHTING PARTNER</span><h2>مشروعك القادم،<br/>يستحق إنارة مختلفة.</h2><a href="#contact" className="button gold">تواصل معنا <span>←</span></a></div></section>
-  <section className="contact-section" id="contact"><div className="container contact-layout"><div><span className="section-kicker">LET'S CONNECT</span><h2>لنعمل على<br/><em>شيءٍ مضيء.</em></h2><p>يسعدنا مساعدتك في اختيار الإنارة المناسبة لمشروعك.</p></div><div className="contact-card"><h3>تواصل مع فريقنا</h3>{settings.phone ? <a href={`tel:${settings.phone.replace(/[^\d+]/g,'')}`}>الهاتف <strong dir="ltr">{settings.phone}</strong></a> : <div>الهاتف <strong>بانتظار الاعتماد</strong></div>}<div>الاسم التجاري <strong>{settings.name}</strong></div><div>السجل التجاري <strong dir="ltr">{settings.commercialRegistration || "بانتظار الاعتماد"}</strong></div><div>الرقم الضريبي <strong dir="ltr">{settings.taxNumber || "بانتظار الاعتماد"}</strong></div><button type="button" className="button gold" onClick={()=>setCartOpen(true)}>إنشاء طلب عرض سعر</button></div></div></section></main>
-  <footer className="site-footer"><div className="container"><Logo/><span>© {new Date().getFullYear()} FLOWER LIGHT · جميع الحقوق محفوظة</span><span>نسخة تطوير مستقلة — محتوى تجريبي</span></div></footer>
+  {!catalogPageRequested&&<>
+  <section className="rc-section rc-services" id="services">
+    <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">OUR SERVICES</span><h2>خدمات وحلول متكاملة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="services.html">جميع الخدمات</a></div>
+      <div className="rc-tile-grid rc-four-col">
+        {[
+          ['✦','اختيار حلول الإنارة','تنظيم البدائل وفق احتياجات المساحة والخصائص الفنية.'],
+          ['▦','كتالوج ومواصفات','مراجعة مواصفات المنتجات والمقارنة بين الخيارات.'],
+          ['◎','دعم المشاريع','إعداد قوائم الأصناف والكميات المطلوبة للمشروع.'],
+          ['▤','طلبات أسعار منظمة','إرسال المنتجات المختارة مع الكميات إلى فريق الشركة.']
+        ].map(([icon,title,description])=><a key={title} href="services.html" className="rc-icon-card">
+          <span className="rc-sector-icon" aria-hidden="true">{icon}</span><h3>{title}</h3><p>{description}</p></a>)}
+      </div>
+    </div>
+  </section>
+  <section className="rc-section rc-why">
+    <div className="container"><span className="rc-kicker">WHY CHOOSE US</span><h2>لماذا هذا النموذج المؤسسي؟</h2><span className="rc-accent-line" aria-hidden="true"></span>
+      <div className="rc-tile-grid rc-four-col">{[
+        ['✓','معلومات واضحة','المواصفات الفنية في متناول العميل.'],
+        ['▦','تنظيم دقيق','فئات وفلاتر وقائمة طلب واحدة.'],
+        ['⚑','تجربة عملية','بحث سريع مناسب للجوال والحاسوب.'],
+        ['♧','حماية البيانات','إدارة محمية وطلبات عروض أسعار متحقَّق منها.']
+      ].map(([icon,title,description])=><div key={title} className="rc-why-item"><span>{icon}</span><h3>{title}</h3><p>{description}</p></div>)}</div>
+    </div>
+  </section>
+  <section className="rc-section rc-projects" id="projects">
+    <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">PROJECT APPLICATIONS</span><h2>مجالات المشاريع</h2><span className="rc-accent-line" aria-hidden="true"></span><p className="rc-muted">نماذج توضيحية لأنواع المشاريع، وليست أعمالًا منفذة أو تعاقدات فعلية.</p></div><a className="rc-btn rc-btn-outline" href="projects.html">عرض المجالات</a></div>
+      <div className="rc-tile-grid rc-project-grid">
+        {[['المباني التجارية','إضاءة واجهات ومساحات العمل','commercial'],['المشاريع السكنية','حلول للمساحات الداخلية','residential'],['الضيافة والمرافق','إضاءة معمارية للمرافق','hospitality'],['المنشآت الصناعية','حلول للمستودعات والمرافق','industrial']].map(([title,desc,style])=>
+        <a href="projects.html" className={'rc-project-card rc-project-'+style} key={title}>
+          <span className="rc-project-meta">تطبيق توضيحي</span><span className="rc-project-copy"><strong>{title}</strong><small>{desc}</small></span>
+        </a>)}
+      </div>
+    </div>
+  </section>
+  <section className="rc-section rc-cta-section">
+    <div className="container"><div className="rc-cta-panel"><span className="rc-cta-orbit" aria-hidden="true"></span>
+      <h2>هل تبحث عن حلول إنارة لمشروعك؟</h2><p>تصفح الكتالوج واختر المنتجات والكميات، ثم أرسل طلب عرض سعر مرتبًا إلى فريق الشركة.</p>
+      <div className="rc-hero-buttons"><button type="button" className="rc-btn rc-btn-light" onClick={()=>setCartOpen(true)}>ابدأ طلب عرض سعر</button>
+      <a className="rc-btn rc-btn-white-outline" href="contact.html">تواصل معنا</a></div>
+    </div></div>
+  </section>
+  <section className="rc-section rc-contact" id="contact">
+    <div className="container rc-contact-grid"><div><span className="rc-kicker">GET IN TOUCH</span><h2>لنبدأ بمشروعك القادم</h2><span className="rc-accent-line" aria-hidden="true"></span><p>نساعدك على تنظيم متطلباتك ومراجعة الخيارات المتاحة في الكتالوج. بيانات التواصل والمعلومات التجارية تُعرض بعد اعتمادها من الإدارة.</p><a className="rc-btn rc-btn-outline" href="contact.html">صفحة التواصل</a></div>
+      <div className="rc-contact-panel"><h3>معلومات الشركة</h3><div><span>الاسم التجاري</span><strong>{settings.name || 'بانتظار الاعتماد'}</strong></div>
+        {settings.phone&&<div><span>الهاتف</span><a dir="ltr" href={`tel:${settings.phone.replace(/[^\d+]/g,'')}`}>{settings.phone}</a></div>}
+        {settings.commercialRegistration&&<div><span>السجل التجاري</span><strong dir="ltr">{settings.commercialRegistration}</strong></div>}
+        <button type="button" className="rc-btn rc-btn-primary" onClick={()=>setCartOpen(true)}>إعداد قائمة طلب السعر</button>
+      </div>
+    </div>
+  </section>
+  </>}
+  </main>
+  <footer className="rc-footer">
+    <div className="container rc-footer-grid">
+      <div><a href="./" className="rc-logo rc-footer-logo"><span className="rc-logo-icon">✦</span><span className="rc-logo-caption"><b>{settings.name || 'FLOWER LIGHT'}</b><small>LIGHTING SOLUTIONS</small></span></a>
+        <p>موقع مؤسسي لعرض حلول الإنارة والمواصفات الفنية وإعداد طلبات الأسعار. معلومات المشاريع والصور للمعاينة حتى اعتمادها.</p></div>
+      <div><h3>روابط سريعة</h3><a href="./">الرئيسية</a><a href="about.html">من نحن</a><a href="./?catalog=1">المنتجات</a><a href="services.html">الخدمات</a><a href="projects.html">المشاريع</a></div>
+      <div><h3>الطلبات والخدمات</h3><a href="./?catalog=1">كتالوج المنتجات</a><button type="button" onClick={()=>setCartOpen(true)}>طلب عرض سعر</button><a href="contact.html">التواصل</a></div>
+      <div><h3>معلومات وسياسات</h3>{settings.phone&&<a dir="ltr" href={`tel:${settings.phone.replace(/[^\d+]/g,'')}`}>{settings.phone}</a>}<a href="./?privacy=1">بيان الخصوصية</a><span>جميع البيانات التجارية تتطلب اعتماد الشركة</span></div>
+    </div>
+    <div className="rc-footer-bottom"><div className="container"><span>© {new Date().getFullYear()} {settings.name || 'FLOWER LIGHT'} · جميع الحقوق محفوظة</span><span>موقع مؤسسي مستقل — محتوى توضيحي</span></div></div>
+  </footer>
   {cartOpen&&<div className="drawer-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}><aside className="quote-drawer" role="dialog" aria-modal="true" aria-labelledby="cartHeading"><div className="drawer-header"><div><h2 id="cartHeading">قائمة طلب السعر</h2><p>{cartItems.length} من 30 صنفًا</p></div><button type="button" className="icon-button" aria-label="إغلاق القائمة" onClick={()=>setCartOpen(false)}>×</button></div>
   {cartItems.length?<div className="drawer-items">{cartItems.map(({p,quantity})=><div className="drawer-item" key={p.id}><div><strong>{p.name}</strong><small dir="ltr">{p.sku}</small></div><QuantityControl product={p} quantity={quantity} onCart={onCart}/><button className="remove-item" type="button" onClick={()=>onCart(p,0)}>حذف</button></div>)}</div>:<div className="drawer-empty">اختر منتجات من الكتالوج لإضافتها إلى طلبك.</div>}
   <div className="drawer-footer"><button className="button outline" type="button" disabled={!cartItems.length} onClick={()=>saveExcel(exportQuoteExcel(cart,products),'flower-light-quote.xlsx')}>تصدير الطلب Excel</button><button className="button gold" type="button" disabled={!cartItems.length} onClick={checkout}>إرسال عبر واتساب</button>
@@ -182,7 +338,7 @@ function App(){
   {quoteOpen && <QuoteRequestDialog cart={cart} onClose={()=>setQuoteOpen(false)} onSubmitted={()=>{setCart([]);setQuoteOpen(false);setNotice('تم استلام طلب عرض السعر. ستتواصل معك الشركة عبر وسيلة التواصل التي أدخلتها.');}}/>}
   {printProduct&&<div className="print-preview-overlay" role="dialog" aria-modal="true" aria-label="معاينة ورقة المواصفات الفنية"><div className="print-preview-top"><strong>معاينة الداتا شيت — {printProduct.sku}</strong><span>اختر «حفظ كملف PDF» من وجهة الطباعة</span><button type="button" className="button primary" onClick={()=>window.print()}>طباعة / حفظ PDF</button><button type="button" className="button outline" onClick={()=>setPrintProduct(null)}>إغلاق المعاينة</button></div><div className="print-preview-paper"><Datasheet product={printProduct} settings={settings}/></div></div>}
   {notice&&<div role="status" className="toast" onClick={()=>setNotice('')}>{notice}</div>}
-  </>;
+  </div>;
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{privacyRequested ? <PrivacyPage/> : cloudAdminRequested ? (cloudEnabled ? <CloudAdmin/> : <div style={{padding:32,margin:'auto',maxWidth:700}}><h1>لوحة الإدارة غير مفعّلة</h1><p>يتطلب تشغيلها ربط مشروع Supabase مستقل وإضافة مفتاح النشر العام ضمن إعدادات البناء.</p><a href="./">العودة للموقع</a></div>) : <App/>}</React.StrictMode>);
