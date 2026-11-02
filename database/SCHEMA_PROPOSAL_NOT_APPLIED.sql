@@ -41,6 +41,7 @@ create table if not exists public.corp_business_info (
   whatsapp_phone text not null default '',
   hero_title text not null default '',
   hero_description text not null default '',
+  show_prices boolean not null default false,
   is_published boolean not null default false,
   updated_at timestamptz not null default now()
 );
@@ -143,7 +144,7 @@ create policy corp_business_admin_update on public.corp_business_info
 -- Quote requests are private. Customers may NOT insert directly through the Data API.
 -- A future Edge Function must validate Turnstile, fields, products and rate limits
 -- and then insert using server-held credentials. Never expose service_role to the browser.
-grant select, update on public.corp_quote_requests to authenticated;
+grant select, update (status) on public.corp_quote_requests to authenticated;
 grant insert on public.corp_quote_requests to service_role;
 create policy corp_quote_admin_read on public.corp_quote_requests
   for select to authenticated
