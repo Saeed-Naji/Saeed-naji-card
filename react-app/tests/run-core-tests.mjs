@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const out=join(root,'tests','.compiled');
 rmSync(out,{recursive:true,force:true});mkdirSync(out,{recursive:true});
-const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts,'src/quote-admin.ts'],{cwd:root,encoding:'utf8'});
+const compiled=spawnSync('tsc',['--strict','--skipLibCheck','--target','es2022','--lib','es2022,dom','--module','commonjs','--moduleResolution','node','--rootDir','src','--outDir',out,'src/logic.ts','src/export.ts','src/types.ts','src/portable.ts','src/gallery.ts','src/quote-request.ts','src/quote-admin.ts'],{cwd:root,encoding:'utf8'});
 if(compiled.status!==0){console.error(compiled.stdout,compiled.stderr);process.exit(1);}
 writeFileSync(join(out,'package.json'),'{'+'"type":"commonjs"}');
 const require=createRequire(import.meta.url);
