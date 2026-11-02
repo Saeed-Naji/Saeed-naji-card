@@ -16,6 +16,7 @@ const statusLabels: Record<Product['status'],string> = {available:'متوفر',s
 const statusClass: Record<Product['status'],string> = {available:'available',soon:'soon',unavailable:'unavailable'};
 const adminMode = !cloudEnabled && import.meta.env.DEV && new URLSearchParams(location.search).get('admin') === 'preview';
 const cloudAdminRequested = new URLSearchParams(location.search).get('admin') === '1';
+const catalogPageRequested = new URLSearchParams(location.search).get('catalog') === '1';
 const privacyRequested = new URLSearchParams(location.search).get('privacy') === '1';
 
 function readProducts(): Product[] {
@@ -177,7 +178,7 @@ function App(){
       <nav className="rc-desktop-nav" aria-label="القائمة الرئيسية">
         <a href="./" aria-current="page">الرئيسية</a>
         <a href="about.html">من نحن</a>
-        <a href="#catalog">المنتجات</a>
+        <a href="./?catalog=1">المنتجات</a>
         <a href="services.html">الخدمات</a>
         <a href="projects.html">المشاريع</a>
         <a href="contact.html">التواصل</a>
@@ -192,11 +193,12 @@ function App(){
       </div>
     </div>
     {mobileNavOpen&&<nav id="rc-mobile-nav" className="rc-mobile-nav" aria-label="القائمة على الجوال">
-      {[['./','الرئيسية'],['about.html','من نحن'],['#catalog','المنتجات'],['services.html','الخدمات'],['projects.html','المشاريع'],['contact.html','التواصل']] .map(([href,label])=>
+      {[['./','الرئيسية'],['about.html','من نحن'],['./?catalog=1','المنتجات'],['services.html','الخدمات'],['projects.html','المشاريع'],['contact.html','التواصل']] .map(([href,label])=>
         <a href={href} key={href} onClick={()=>setMobileNavOpen(false)}>{label}</a>)}
     </nav>}
   </header>
   <main id="top">
+  {!catalogPageRequested&&<>
     <section className="rc-hero" aria-label="حلول الإنارة المؤسسية">
       <div className="rc-hero-picture" role="img" aria-label="مشروع إنارة معمارية توضيحي"></div>
       <div className="rc-hero-overlay"></div>
@@ -205,7 +207,7 @@ function App(){
         <h1>{settings.heroTitle}</h1>
         <p>{settings.heroDescription}</p>
         <div className="rc-hero-buttons">
-          <a className="rc-btn rc-btn-primary" href="#catalog">استعرض المنتجات <span aria-hidden="true">←</span></a>
+          <a className="rc-btn rc-btn-primary" href="./?catalog=1">استعرض المنتجات <span aria-hidden="true">←</span></a>
           <a className="rc-btn rc-btn-hero-outline" href="about.html">تعرف على الشركة</a>
         </div>
       </div>
@@ -261,10 +263,12 @@ function App(){
       <div className="product-grid rc-featured-grid">{featured.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div></div>
     </section>}
 
-  <section id="catalog" className="catalog-section"><div className="container"><div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
+  </>}
+  <section id="catalog" className="catalog-section"><div className="container">{catalogPageRequested&&<div className="rc-page-intro"><span className="rc-kicker">COMPLETE PRODUCT CATALOG</span><h1>كتالوج المنتجات</h1><p>تصفح الأصناف وابحث في المواصفات الفنية، وأضف ما تحتاجه إلى قائمة طلب السعر.</p></div>}<div className="section-heading"><div><span className="section-kicker">OUR COLLECTION</span><h2>مجموعة المنتجات</h2><p>ابحث عن حلول الإنارة المناسبة وقارن المواصفات الفنية.</p></div><span className="product-count">{filtered.length} منتج</span></div>
   <div className="filters"><label className="search-label">بحث في المنتجات<input placeholder="اسم المنتج أو الكود..." value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))}/></label>{filterSelect('category','القسم')}{filterSelect('cct','لون الإضاءة')}{filterSelect('installation','التركيب')}{filterSelect('status','التوفر')}<button type="button" className="clear-filters" onClick={()=>setFilters({...EMPTY_FILTERS})}>مسح الفلاتر</button></div>
   {!catalogReady && cloudEnabled ? <div className="empty-state" role="status"><h3>جاري تحميل الكتالوج</h3><p>تُجلب المنتجات من قاعدة Saeed المؤسسية.</p></div> : filtered.length?<div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p} quantity={cart.find(c=>c.productId===p.id)?.quantity??0} onCart={onCart} onDatasheet={setPrintProduct}/>)}</div>:<div className="empty-state"><h3>لم نجد منتجات مطابقة</h3><p>جرّب تغيير الفلاتر أو البحث بكود مختلف.</p><button type="button" className="button outline" onClick={()=>setFilters({...EMPTY_FILTERS})}>عرض جميع المنتجات</button></div>}
   <div className="catalog-bottom"><button type="button" className="button outline" onClick={()=>saveExcel(exportProductsExcel(available),'flower-light-products.xlsx')}>تصدير قائمة المنتجات Excel ↓</button><p>المنتجات المعروضة بيانات تجريبية لتطوير المشروع وليست كتالوجًا نهائيًا.</p></div></div></section>
+  {!catalogPageRequested&&<>
   <section className="rc-section rc-services" id="services">
     <div className="container"><div className="rc-title-row"><div><span className="rc-kicker">OUR SERVICES</span><h2>خدمات وحلول متكاملة</h2><span className="rc-accent-line" aria-hidden="true"></span></div><a className="rc-btn rc-btn-outline" href="services.html">جميع الخدمات</a></div>
       <div className="rc-tile-grid rc-four-col">
@@ -313,13 +317,15 @@ function App(){
         <button type="button" className="rc-btn rc-btn-primary" onClick={()=>setCartOpen(true)}>إعداد قائمة طلب السعر</button>
       </div>
     </div>
-  </section></main>
-  <footer className="rc-footer">
+  </section>
+  </>}
+  </main>
+  <footer className="rc-footer"
     <div className="container rc-footer-grid">
       <div><a href="./" className="rc-logo rc-footer-logo"><span className="rc-logo-icon">✦</span><span className="rc-logo-caption"><b>{settings.name || 'FLOWER LIGHT'}</b><small>LIGHTING SOLUTIONS</small></span></a>
         <p>موقع مؤسسي لعرض حلول الإنارة والمواصفات الفنية وإعداد طلبات الأسعار. معلومات المشاريع والصور للمعاينة حتى اعتمادها.</p></div>
-      <div><h3>روابط سريعة</h3><a href="./">الرئيسية</a><a href="about.html">من نحن</a><a href="#catalog">المنتجات</a><a href="services.html">الخدمات</a><a href="projects.html">المشاريع</a></div>
-      <div><h3>الطلبات والخدمات</h3><a href="#catalog">كتالوج المنتجات</a><button type="button" onClick={()=>setCartOpen(true)}>طلب عرض سعر</button><a href="contact.html">التواصل</a></div>
+      <div><h3>روابط سريعة</h3><a href="./">الرئيسية</a><a href="about.html">من نحن</a><a href="./?catalog=1">المنتجات</a><a href="services.html">الخدمات</a><a href="projects.html">المشاريع</a></div>
+      <div><h3>الطلبات والخدمات</h3><a href="./?catalog=1">كتالوج المنتجات</a><button type="button" onClick={()=>setCartOpen(true)}>طلب عرض سعر</button><a href="contact.html">التواصل</a></div>
       <div><h3>معلومات وسياسات</h3>{settings.phone&&<a dir="ltr" href={`tel:${settings.phone.replace(/[^\d+]/g,'')}`}>{settings.phone}</a>}<a href="./?privacy=1">بيان الخصوصية</a><span>جميع البيانات التجارية تتطلب اعتماد الشركة</span></div>
     </div>
     <div className="rc-footer-bottom"><div className="container"><span>© {new Date().getFullYear()} {settings.name || 'FLOWER LIGHT'} · جميع الحقوق محفوظة</span><span>موقع مؤسسي مستقل — محتوى توضيحي</span></div></div>
