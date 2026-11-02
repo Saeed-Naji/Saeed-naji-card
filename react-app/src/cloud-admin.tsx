@@ -30,6 +30,7 @@ export default function CloudAdmin() {
   const [quotes,setQuotes] = useState<QuoteRow[]>([]);
   const [quoteFilter,setQuoteFilter] = useState<QuoteStatus|'all'>('all');
   const [quoteSearch,setQuoteSearch] = useState('');
+  const [quoteServiceState,setQuoteServiceState] = useState<'checking'|'configured'|'offline'>('checking');
   const [settings,setSettings] = useState<BrandSettings>(defaultSettings);
   const [published,setPublished] = useState(false);
   const [draft,setDraft] = useState<Product|null>(null);
@@ -66,6 +67,18 @@ export default function CloudAdmin() {
       // Token refresh and membership checks are enforced by RLS on every query.
     }) ?? {data:{subscription:{unsubscribe(){}}}};
     return ()=>{active=false;subscription.unsubscribe();};
+  },[]);
+
+  useEffect(()=>{
+    const siteKey=(import.meta.env.VITE_CORP_TURNSTILE_SITE_KEY??'').trim();
+    if(!cloudClient||!siteKey){setQuoteServiceState('offline');return;}
+    let active=true;
+    void cloudClient.functions.invoke('corp-submit-quote',{method:'GET'})
+      .then(({data,error})=>{
+        if(active)setQuoteServiceState(!error&&data?.configured===true?'configured':'offline');
+      })
+      .catch(()=>{if(active)setQuoteServiceState('offline');});
+    return ()=>{active=false;};
   },[]);
 
   async function signIn(e:React.FormEvent<HTMLFormElement>) {
@@ -154,6 +167,20 @@ export default function CloudAdmin() {
     </form>}
     {stage==='denied'&&<div className="cloud-panel"><h2>لا تملك صلاحية الإدارة</h2><p>يتطلب الوصول حسابًا معتمدًا في جدول عضويات الإدارة بالمشروع الجديد.</p><button className="cloud-btn" onClick={()=>void signOut()}>تسجيل الخروج</button></div>}
     {stage==='ready'&&<><div className="cloud-toolbar"><span>تم التحقق من عضوية المدير</span><button className="cloud-btn cloud-muted" onClick={()=>void signOut()}>تسجيل الخروج</button></div>
+      <section className="cloud-panel cloud-quote-ready">
+        <div className="cloud-section-head">
+          <h2>حالة استقبال طلبات الأسعار</h2>
+          <span role="status" className="cloud-ready-status">{quoteServiceState==='checking'?'جارٍ الفحص…':
+            quoteServiceState==='configured'?'إعدادات العميل والخادم موجودة؛ يلزم اختبار إرسال فعلي':
+            'غير مفعّل: إعدادات Turnstile غير مكتملة'}</span>
+        </div>
+        <p className="cloud-note">لا يُسمح بإرسال بيانات العملاء قبل اكتمال التحقق. فحص الإعدادات لا يثبت صحة المفاتيح حتى ينجح إرسال اختبار حقيقي.</p>
+        {quoteServiceState!=='configured'&&<p className="cloud-note">
+          أنشئ Turnstile للنطاق saeed-naji.github.io في Cloudflare؛ ضع المفتاح السري TURNSTILE_SECRET_KEY
+          في Supabase Saeed، والمفتاح العام CORP_TURNSTILE_SITE_KEY في GitHub Actions Variables، ثم أعد النشر.
+          لا ترسل المفتاح السري عبر المحادثة ولا تضفه إلى ملفات الموقع.
+        </p>}
+      </section>
       <div className="cloud-panel"><div className="cloud-section-head"><h2>إدارة المنتجات <small>({products.length})</small></h2><button className="cloud-btn" onClick={()=>{setDraft(emptyProduct());setError('');setImageInfo('');}}>+ إضافة منتج</button></div>
       <div className="cloud-table-wrap"><table><thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>النشر</th><th>الإجراءات</th></tr></thead><tbody>{products.map(p=><tr key={p.id}><td dir="ltr">{p.sku}</td><td>{p.name}</td><td>{p.category}</td><td>{p.visible?'ظاهر':'مخفي'}</td><td><button className="cloud-link" onClick={()=>{setDraft({...p});setError('');setImageInfo('');}}>تعديل</button><button className="cloud-link cloud-danger" disabled={busy} onClick={()=>void deleteProduct(p)}>حذف</button></td></tr>)}</tbody></table>
       {products.length===0&&<p>لا توجد منتجات في القاعدة الجديدة. لا تُنقل منتجات المشروع القديم تلقائيًا.</p>}</div></div>
