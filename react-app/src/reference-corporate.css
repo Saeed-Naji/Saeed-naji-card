@@ -205,3 +205,8 @@ body{background:#fff}
  .rc-quote-text{display:none}
 }
 @media(prefers-reduced-motion:reduce){.rc-app *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Standalone catalog route: /?catalog=1 keeps all existing Supabase product actions. */
+.rc-page-intro{text-align:center;border-bottom:1px solid var(--rc-border);padding:8px 0 34px;margin-bottom:40px}
+.rc-page-intro h1{font-size:clamp(30px,3.5vw,48px);font-weight:900;margin:8px 0}
+.rc-page-intro p{color:var(--rc-text);line-height:1.9;font-size:14px;margin:0}
