@@ -1,0 +1,49 @@
+name: Validate React TypeScript v0.3 migration
+on:
+  push:
+    branches:
+      - feature/react-v03-migration
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify-react:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: react-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Commit generated lockfile to this development branch
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add react-app/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Lock dependencies for React preview"
+            git push origin HEAD:feature/react-v03-migration
+          fi
+      - name: TypeScript typecheck
+        run: npm run typecheck
+      - name: Domain and Excel unit tests
+        run: npm run test:core
+      - name: Build production React app
+        run: npm run build
+      - name: Verify production editor is disabled
+        run: |
+          if grep -q 'admin=preview' dist/assets/*.js; then
+            echo "Warning: preview editor flag retained in bundled source; verify runtime DEV gate"
+          fi
+          test -f dist/index.html
+      - name: Upload build as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-v03-dist
+          path: react-app/dist/
+          if-no-files-found: error

@@ -1,4 +1,4 @@
-name: Deploy independent corporate preview
+name: Deploy independent corporate React preview
 on:
   push:
     branches: [main]
@@ -18,15 +18,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate all HTML pages and local links
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: react-app/package-lock.json
+      - name: Install locked dependencies
+        working-directory: react-app
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck React
+        working-directory: react-app
+        run: npm run typecheck
+      - name: Test core logic and native Excel exports
+        working-directory: react-app
+        run: npm run test:core
+      - name: Build React
+        working-directory: react-app
+        run: npm run build
+      - name: Validate corporate static subpages
         run: node tests/static-pages.mjs
-      - name: Prepare public files only
+      - name: Include independent corporate subpages
         run: |
-          mkdir -p _site
-          cp index.html about.html services.html projects.html contact.html pages.css _site/
+          cp about.html services.html projects.html contact.html pages.css react-app/dist/
+          test -f react-app/dist/index.html
+          test -f react-app/dist/about.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: react-app/dist
       - id: deployment
         uses: actions/deploy-pages@v4
