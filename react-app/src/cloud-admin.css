@@ -2,3 +2,12 @@
 .cloud-admin details{margin-top:7px;color:#587484}.cloud-admin summary{cursor:pointer;font-size:12px}.cloud-message{max-width:260px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.8}.cloud-table-wrap td{vertical-align:top}.cloud-table-wrap td select{min-width:110px}.cloud-error{z-index:110}
 
 .cloud-upload{border:1px dashed #aac3c9;background:#f6f9f9;border-radius:7px;padding:17px;margin:16px 0}.cloud-upload>label{display:block;font-size:13px;font-weight:700;margin-bottom:9px}.cloud-upload input[type=file]{max-width:100%;font:inherit}.cloud-image-preview{display:block;max-width:220px;max-height:200px;object-fit:contain;border:1px solid #d5e0e2;background:#fff;border-radius:5px;padding:5px;margin:10px 0}.cloud-upload-success{font-size:13px;color:#21664e;line-height:1.8}.cloud-upload .cloud-note{margin:8px 0 0}
+
+/* v0.8: admin gallery preview and association-only image removal */
+.cloud-gallery-title{font-weight:800;color:#284b5b;font-size:13px;margin:14px 0 8px}
+.cloud-gallery-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:11px}
+.cloud-gallery-item{display:flex;flex-direction:column;gap:6px;border:1px solid #d9e2e4;border-radius:5px;padding:7px;background:white;min-width:0}
+.cloud-gallery-item>img{width:100%;height:93px;object-fit:contain;background:#f5f8f8;border-radius:3px}
+.cloud-gallery-controls{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.cloud-gallery-controls .cloud-link{margin:0;text-align:right;padding:3px 0}
+.cloud-primary-label{font-weight:700;color:#27694e;font-size:12px;padding:5px 0}
