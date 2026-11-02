@@ -323,3 +323,30 @@ body{background:#fff}
  .rc-app .product-grid,.rc-featured-grid{grid-template-columns:1fr}
  .rc-quote-text{display:none}
 }
+
+/* Exact photography paths from the user-provided reference archive.
+   Keep existing scene as a fallback until those public/images files are uploaded. */
+.rc-hero-picture{
+  background-image:url('/Saeed-naji-card/images/hero.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover;background-position:center,center
+}
+.rc-about-visual{
+  background-image:url('/Saeed-naji-card/images/about.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover;background-position:center,center;
+}
+.rc-project-commercial{
+  background-image:linear-gradient(0deg,#211611de 0%,transparent 84%),url('/Saeed-naji-card/images/pr-tower.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover,cover;background-position:center
+}
+.rc-project-residential{
+  background-image:linear-gradient(0deg,#211611de 0%,transparent 84%),url('/Saeed-naji-card/images/pr-resort.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover,cover;background-position:center
+}
+.rc-project-hospitality{
+  background-image:linear-gradient(0deg,#211611de 0%,transparent 84%),url('/Saeed-naji-card/images/pr-hotel.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover,cover;background-position:center
+}
+.rc-project-industrial{
+  background-image:linear-gradient(0deg,#211611de 0%,transparent 84%),url('/Saeed-naji-card/images/pr-factory.jpg'),url('./assets/hero.jpg');
+  background-size:cover,cover,cover;background-position:center
+}
