@@ -332,7 +332,7 @@ function App(){
   {quoteOpen && <QuoteRequestDialog cart={cart} onClose={()=>setQuoteOpen(false)} onSubmitted={()=>{setCart([]);setQuoteOpen(false);setNotice('تم استلام طلب عرض السعر. ستتواصل معك الشركة عبر وسيلة التواصل التي أدخلتها.');}}/>}
   {printProduct&&<div className="print-preview-overlay" role="dialog" aria-modal="true" aria-label="معاينة ورقة المواصفات الفنية"><div className="print-preview-top"><strong>معاينة الداتا شيت — {printProduct.sku}</strong><span>اختر «حفظ كملف PDF» من وجهة الطباعة</span><button type="button" className="button primary" onClick={()=>window.print()}>طباعة / حفظ PDF</button><button type="button" className="button outline" onClick={()=>setPrintProduct(null)}>إغلاق المعاينة</button></div><div className="print-preview-paper"><Datasheet product={printProduct} settings={settings}/></div></div>}
   {notice&&<div role="status" className="toast" onClick={()=>setNotice('')}>{notice}</div>}
-  </>;
+  </div>;
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{privacyRequested ? <PrivacyPage/> : cloudAdminRequested ? (cloudEnabled ? <CloudAdmin/> : <div style={{padding:32,margin:'auto',maxWidth:700}}><h1>لوحة الإدارة غير مفعّلة</h1><p>يتطلب تشغيلها ربط مشروع Supabase مستقل وإضافة مفتاح النشر العام ضمن إعدادات البناء.</p><a href="./">العودة للموقع</a></div>) : <App/>}</React.StrictMode>);
