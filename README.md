@@ -1,7 +1,26 @@
-# FLOWER LIGHT — Corporate Website (Independent Preview)
+# FLOWER LIGHT — معاينة الموقع المؤسسي الجديد
 
-This repository hosts a separate React + TypeScript website preview. It is not connected to the old Flower Light deployment or Supabase database.
+هذه نسخة **معاينة عامة مستقلة** لموقع FLOWER LIGHT، على مستودع `Saeed-Naji/Saeed-naji-card`. لم يُجرَ أي تعديل على مشروع Flower Light القديم أو قاعدة Supabase.
 
-> **Demo / in development:** product data is illustrative, and the local editor is not an authenticated admin dashboard. Do not use for production orders or customer information.
+## المعاينة المنشورة
 
-The full source and deployment workflow are being added to this repository.
+عند تفعيل GitHub Pages واكتمال Workflow، يكون الرابط المتوقع:
+
+https://saeed-naji.github.io/Saeed-naji-card/
+
+من Settings → Pages اختر **GitHub Actions** كمصدر النشر، ثم راقب Actions → Deploy independent corporate preview. لا يعتبر الرابط جاهزًا حتى تنجح مهمة النشر.
+
+## ما يعمل حاليًا
+
+- تصميم مؤسسي عربي متجاوب مع الجوال.
+- كتالوج منتجات توضيحية مع البحث حسب الاسم والكود والفئة.
+- قائمة طلب سعر مع تعديل الكميات وحذف المنتجات والتخزين المحلي فقط.
+- تصدير المنتجات والطلب إلى **CSV تجريبي** (وليس Excel XLSX).
+- معاينة مواصفات المنتج وطباعتها أو حفظها PDF بواسطة المتصفح.
+
+## قيود مهمة
+
+- هذه **ليست** حزمة React + TypeScript v0.3 الأصلية الكاملة؛ إنها معاينة HTML مستقلة وبديلة مؤقتة، هدفها توفير رابط سريع للعرض. يجب نقل الكود الأصلي إلى المستودع بعد إعداد بناء Vite وتثبيت التبعيات.
+- الأصناف والمواصفات **تجريبية وغير معتمدة**، ولا توجد مصادقة أو مدير آمن أو اتصال بقاعدة بيانات أو إرسال حقيقي للطلبات.
+- لا تدخل معلومات شخصية أو بيانات حساسة في المعاينة.
+- `index.html` هو ملف الدخول، و `.github/workflows/pages.yml` يضبط النشر.
